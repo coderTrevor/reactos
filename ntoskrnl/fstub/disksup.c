@@ -12,7 +12,7 @@
 /* INCLUDES ******************************************************************/
 
 #include <ntoskrnl.h>
-#define NDEBUG
+//#define NDEBUG
 #include <debug.h>
 #include <internal/hal.h>
 
@@ -1821,6 +1821,10 @@ xHalIoReadPartitionTable(IN PDEVICE_OBJECT DeviceObject,
     }
 
     /* Get the end and maximum sector */
+    DiskGeometryEx.DiskSize.QuadPart = DiskGeometryEx.Geometry.Cylinders.QuadPart * DiskGeometryEx.Geometry.TracksPerCylinder * DiskGeometryEx.Geometry.SectorsPerTrack * DiskGeometryEx.Geometry.BytesPerSector;
+    
+    DPRINT("FSTUB: Cylinders = %#I64x, TracksPerCylinder = %d, SectorsPerTrack = %d, BytesPerSector = %d\n",
+           DiskGeometryEx.Geometry.Cylinders, DiskGeometryEx.Geometry.TracksPerCylinder, DiskGeometryEx.Geometry.SectorsPerTrack, DiskGeometryEx.Geometry.BytesPerSector);
     EndSector = DiskGeometryEx.DiskSize.QuadPart / DiskGeometryEx.Geometry.BytesPerSector;
     MaxSector = EndSector << 1;
     DPRINT("FSTUB: DiskSize = %#I64x, MaxSector = %#I64x\n",
