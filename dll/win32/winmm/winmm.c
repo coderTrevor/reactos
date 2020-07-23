@@ -195,6 +195,7 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID fImpLoad)
  */
 MMRESULT WINMM_CheckCallback(DWORD_PTR dwCallback, DWORD fdwOpen, BOOL mixer)
 {
+    TRACE("WINMM_CheckCallback(%p, %u, %u)\n", dwCallback, fdwOpen, mixer);
     switch (fdwOpen & CALLBACK_TYPEMASK) {
     case CALLBACK_NULL:     /* dwCallback need not be NULL */
         break;
@@ -819,7 +820,7 @@ UINT WINAPI midiOutGetDevCapsW(UINT_PTR uDeviceID, LPMIDIOUTCAPSW lpCaps,
 {
     LPWINE_MLD	wmld;
 
-    TRACE("(%lu, %p, %u);\n", uDeviceID, lpCaps, uSize);
+    TRACE("midiOutGetDevCapsW(%lu, %p, %u);\n", uDeviceID, lpCaps, uSize);
 
     if (lpCaps == NULL)	return MMSYSERR_INVALPARAM;
 
@@ -2061,24 +2062,34 @@ static UINT WAVE_Open(HANDLE* lphndl, UINT uDeviceID, UINT uType,
     DWORD		dwRet;
     WAVEOPENDESC	wod;
 
-    TRACE("(%p, %d, %s, %p, %08lX, %08lX, %08X);\n",
+    TRACE("WAVE_Open(%p, %d, %s, %p, %08lX, %08lX, %08X - );\n",
 	  lphndl, (int)uDeviceID, (uType==MMDRV_WAVEOUT)?"Out":"In", lpFormat, dwCallback,
 	  dwInstance, dwFlags);
 
     if (dwFlags & WAVE_FORMAT_QUERY)
         TRACE("WAVE_FORMAT_QUERY requested !\n");
+    else
+    {
+        if (lpFormat->nChannels == 0 || lpFormat->nSamplesPerSec == 0)
+        {
+            TRACE("bad format\n");
+            return WAVERR_BADFORMAT;
+        }
+    }
 
     dwRet = WINMM_CheckCallback(dwCallback, dwFlags, FALSE);
     if (dwRet != MMSYSERR_NOERROR)
         return dwRet;
 
+    TRACE("No error\n");
+
     if (lpFormat == NULL) {
-        WARN("bad format\n");
+        TRACE("bad format\n");
         return WAVERR_BADFORMAT;
     }
 
     if ((dwFlags & WAVE_MAPPED) && (uDeviceID == (UINT)-1)) {
-        WARN("invalid parameter\n");
+        TRACE("invalid parameter\n");
 	return MMSYSERR_INVALPARAM;
     }
 
@@ -2250,6 +2261,9 @@ MMRESULT WINAPI waveOutOpen(LPHWAVEOUT lphWaveOut, UINT uDeviceID,
                        LPCWAVEFORMATEX lpFormat, DWORD_PTR dwCallback,
                        DWORD_PTR dwInstance, DWORD dwFlags)
 {
+    TRACE("waveOutOpen() called\nwFormatTag=%u, nChannels=%u, nSamplesPerSec=%u, nAvgBytesPerSec=%u, nBlockAlign=%u, wBitsPerSample=%u\n",
+          lpFormat->wFormatTag, lpFormat->nChannels, lpFormat->nSamplesPerSec,
+          lpFormat->nAvgBytesPerSec, lpFormat->nBlockAlign, lpFormat->wBitsPerSample);
     return WAVE_Open((HANDLE*)lphWaveOut, uDeviceID, MMDRV_WAVEOUT, lpFormat,
                      dwCallback, dwInstance, dwFlags);
 }
@@ -2627,6 +2641,7 @@ MMRESULT WINAPI waveInOpen(HWAVEIN* lphWaveIn, UINT uDeviceID,
                            LPCWAVEFORMATEX lpFormat, DWORD_PTR dwCallback,
                            DWORD_PTR dwInstance, DWORD dwFlags)
 {
+    TRACE("waveInOpen() called\n");
     return WAVE_Open((HANDLE*)lphWaveIn, uDeviceID, MMDRV_WAVEIN, lpFormat,
                      dwCallback, dwInstance, dwFlags);
 }

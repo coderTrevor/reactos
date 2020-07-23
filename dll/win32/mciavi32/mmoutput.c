@@ -527,7 +527,7 @@ DWORD MCIAVI_OpenAudio(WINE_MCIAVI* wma, unsigned* nHdr, LPWAVEHDR* pWaveHdr)
     DWORD	dwRet;
     LPWAVEHDR	waveHdr;
     unsigned	i;
-
+    TRACE("MCIAVI_OpenAudio()\n");
     dwRet = waveOutOpen((HWAVEOUT *)&wma->hWave, WAVE_MAPPER, wma->lpWaveFormat,
                        (DWORD_PTR)MCIAVI_waveCallback, wma->wDevID, CALLBACK_FUNCTION);
     if (dwRet != 0) {

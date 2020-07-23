@@ -9,7 +9,7 @@
 */
 
 #include "precomp.h"
-
+#include <debug.h>
 MMRESULT
 QueryWaveDeviceFormatSupport(
     IN  PSOUND_DEVICE SoundDevice,
@@ -57,7 +57,7 @@ SetWaveDeviceFormat(
     PMMFUNCTION_TABLE FunctionTable;
     PSOUND_DEVICE SoundDevice;
 
-    SND_TRACE(L"Setting wave format\n");
+    DPRINT1("SetWaveDeviceFormat() Setting wave format\n");
 
     VALIDATE_MMSYS_PARAMETER( IsValidSoundDeviceInstance(SoundDeviceInstance) );
 

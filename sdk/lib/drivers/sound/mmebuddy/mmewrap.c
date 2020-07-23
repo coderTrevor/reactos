@@ -10,6 +10,7 @@
 
 #include "precomp.h"
 
+#include <debug.h>
 
 /*
     Sets the device into running or stopped state
@@ -143,6 +144,25 @@ MmeOpenDevice(
     LPWAVEFORMATEX Format = NULL;
 
     SND_TRACE(L"Opening device");
+
+    DPRINT1("MMeOpenDevice(%d, %ul, %p, %ul, %p)\n", DeviceType, DeviceId, OpenParameters, Flags, PrivateHandle);
+
+    /*
+    WORD wFormatTag;
+    WORD nChannels;
+    DWORD nSamplesPerSec;
+    DWORD nAvgBytesPerSec;
+    WORD nBlockAlign;
+    WORD wBitsPerSample;
+    WORD cbSize;
+    */
+    DPRINT1("wFormatTag: %u\n", OpenParameters->lpFormat->wFormatTag);
+    DPRINT1("nChannels: %u\n", OpenParameters->lpFormat->nChannels);
+    DPRINT1("nSamplesPerSec: %ul\n", OpenParameters->lpFormat->nSamplesPerSec);
+    DPRINT1("nAvgBytesPerSec: %ul\n", OpenParameters->lpFormat->nAvgBytesPerSec);
+    DPRINT1("nBlockAlign: %u\n", OpenParameters->lpFormat->nBlockAlign);
+    DPRINT1("wBitsPerSample: %u\n", OpenParameters->lpFormat->wBitsPerSample);
+    DPRINT1("cbSize: %u\n", OpenParameters->lpFormat->cbSize);
 
     VALIDATE_MMSYS_PARAMETER( IS_WAVE_DEVICE_TYPE(DeviceType) || IS_MIXER_DEVICE_TYPE(DeviceType) || IS_MIDI_DEVICE_TYPE(DeviceType) );    /* FIXME? wave in too? */
     VALIDATE_MMSYS_PARAMETER( OpenParameters );

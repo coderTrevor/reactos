@@ -14,7 +14,7 @@
 
 #include "wdmaud.h"
 
-#define NDEBUG
+//#define NDEBUG
 #include <debug.h>
 #include <mmebuddy_debug.h>
 

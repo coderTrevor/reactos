@@ -185,7 +185,7 @@ DWORD MMDRV_Open(LPWINE_MLD mld, UINT wMsg, DWORD_PTR dwParam1, DWORD dwFlags)
     DWORD		dwRet = MMSYSERR_BADDEVICEID;
     DWORD_PTR		dwInstance;
     WINE_LLTYPE*	llType = &llTypes[mld->type];
-    TRACE("(%p, %04x, 0x%08lx, 0x%08x)\n", mld, wMsg, dwParam1, dwFlags);
+    TRACE("MMDRV_Open(%p, %04x, 0x%08lx, 0x%08x)\n", mld, wMsg, dwParam1, dwFlags);
 
     mld->dwDriverInstance = (DWORD_PTR)&dwInstance;
 
@@ -236,7 +236,7 @@ DWORD	MMDRV_Close(LPWINE_MLD mld, UINT wMsg)
  */
 static LPWINE_MLD MMDRV_GetByID(UINT uDevID, UINT type)
 {
-    TRACE("(%04x, %04x)\n", uDevID, type);
+    TRACE("MMDRV_GetByID(%04x, %04x)\n", uDevID, type);
     if (uDevID < llTypes[type].wMaxId)
 	return &llTypes[type].lpMlds[uDevID];
     if ((uDevID == (UINT16)-1 || uDevID == (UINT)-1) && llTypes[type].nMapper != -1)
@@ -251,7 +251,7 @@ LPWINE_MLD	MMDRV_Get(HANDLE _hndl, UINT type, BOOL bCanBeID)
 {
     LPWINE_MLD	mld = NULL;
     UINT_PTR    hndl = (UINT_PTR)_hndl;
-    TRACE("(%p, %04x, %c)\n", _hndl, type, bCanBeID ? 'Y' : 'N');
+    TRACE("MMDRV_Get(%p, %04x, %c)\n", _hndl, type, bCanBeID ? 'Y' : 'N');
 
     assert(type < MMDRV_MAX);
 
@@ -362,7 +362,7 @@ static  BOOL	MMDRV_InitPerType(LPWINE_MM_DRIVER lpDrv, UINT type, UINT wMsg)
     DWORD			ret;
     UINT			count = 0;
     int				i, k;
-    TRACE("(%p, %04x, %04x)\n", lpDrv, type, wMsg);
+    TRACE("MMDRV_InitPerType(%p, %04x, %04x)\n", lpDrv, type, wMsg);
 
     part->nIDMin = part->nIDMax = 0;
 

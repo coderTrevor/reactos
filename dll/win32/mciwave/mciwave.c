@@ -747,7 +747,7 @@ static DWORD WAVE_mciPlay(MCIDEVICEID wDevID, DWORD_PTR dwFlags, DWORD_PTR pmt, 
     HANDLE		oldcb;
     int			whidx;
 
-    TRACE("(%u, %08lX, %p);\n", wDevID, dwFlags, lpParms);
+    TRACE("WAVE_mciPlay(%u, %08lX, %p);\n", wDevID, dwFlags, lpParms);
 
     if (wmw == NULL)		return MCIERR_INVALID_DEVICE_ID;
     if (lpParms == NULL)	return MCIERR_NULL_PARAMETER_BLOCK;
@@ -1007,7 +1007,7 @@ static DWORD WAVE_mciRecord(MCIDEVICEID wDevID, DWORD_PTR dwFlags, DWORD_PTR pmt
     WINE_MCIWAVE*	wmw = WAVE_mciGetOpenDev(wDevID);
     HANDLE		oldcb;
 
-    TRACE("(%u, %08lX, %p);\n", wDevID, dwFlags, lpParms);
+    TRACE("WAVE_mciRecord(%u, %08lX, %p);\n", wDevID, dwFlags, lpParms);
 
     if (wmw == NULL)		return MCIERR_INVALID_DEVICE_ID;
     if (lpParms == NULL)	return MCIERR_NULL_PARAMETER_BLOCK;

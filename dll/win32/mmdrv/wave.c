@@ -355,7 +355,7 @@ SetWaveFormat(
 
     size = GetWaveFormatExSize(format);
 
-    DPRINT("SetWaveFormat\n");
+    DPRINT1("SetWaveFormat() called\n");
 
     return DeviceIoControl(device_handle,
                            IOCTL_WAVE_SET_FORMAT,

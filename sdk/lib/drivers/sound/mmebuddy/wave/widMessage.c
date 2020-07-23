@@ -11,6 +11,7 @@
 
 #include "precomp.h"
 
+#include <debug.h>
 /*
     Standard MME driver entry-point for messages relating to wave audio
     input.
@@ -60,7 +61,17 @@ widMessage(
             break;
         }
         case WIDM_OPEN :
-        {
+        {            
+            DPRINT1("widMessage(%ul, WIDM_OPEN, %p, %p, %p)\n", DeviceId, PrivateHandle, Parameter1, Parameter2);
+            
+            DPRINT1("wFormatTag: %u\n", ((LPWAVEOPENDESC)Parameter1)->lpFormat->wFormatTag);
+            DPRINT1("nChannels: %u\n", ((LPWAVEOPENDESC)Parameter1)->lpFormat->nChannels);
+            DPRINT1("nSamplesPerSec: %ul\n", ((LPWAVEOPENDESC)Parameter1)->lpFormat->nSamplesPerSec);
+            DPRINT1("nAvgBytesPerSec: %ul\n", ((LPWAVEOPENDESC)Parameter1)->lpFormat->nAvgBytesPerSec);
+            DPRINT1("nBlockAlign: %u\n", ((LPWAVEOPENDESC)Parameter1)->lpFormat->nBlockAlign);
+            DPRINT1("wBitsPerSample: %u\n", ((LPWAVEOPENDESC)Parameter1)->lpFormat->wBitsPerSample);
+            DPRINT1("cbSize: %u\n", ((LPWAVEOPENDESC)Parameter1)->lpFormat->cbSize);
+
             Result = MmeOpenDevice(WAVE_IN_DEVICE_TYPE,
                                        DeviceId,
                                        (LPWAVEOPENDESC) Parameter1,

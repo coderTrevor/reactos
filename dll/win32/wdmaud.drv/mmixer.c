@@ -13,7 +13,7 @@
 #include <setupapi.h>
 #include <mmixer.h>
 
-#define NDEBUG
+//#define NDEBUG
 #include <debug.h>
 #include <mmebuddy_debug.h>
 
@@ -495,6 +495,25 @@ WdmAudSetWaveDeviceFormatByMMixer(
     {
         return TranslateInternalMmResult(Result);
     }
+
+    DPRINT1("WdmAudSetWaveDeviceFormatByMMixer(%p, %ul, %p, %u)\n", Instance, DeviceId, WaveFormat, WaveFormatSize);
+
+    /*
+    WORD wFormatTag;
+    WORD nChannels;
+    DWORD nSamplesPerSec;
+    DWORD nAvgBytesPerSec;
+    WORD nBlockAlign;
+    WORD wBitsPerSample;
+    WORD cbSize;
+    */
+    DPRINT1("wFormatTag: %u\n", WaveFormat->wFormatTag);
+    DPRINT1("nChannels: %u\n", WaveFormat->nChannels);
+    DPRINT1("nSamplesPerSec: %ul\n", WaveFormat->nSamplesPerSec);
+    DPRINT1("nAvgBytesPerSec: %ul\n", WaveFormat->nAvgBytesPerSec);
+    DPRINT1("nBlockAlign: %u\n", WaveFormat->nBlockAlign);
+    DPRINT1("wBitsPerSample: %u\n", WaveFormat->wBitsPerSample);
+    DPRINT1("cbSize: %u\n", WaveFormat->cbSize);
 
     Result = GetSoundDeviceType(SoundDevice, &DeviceType);
     SND_ASSERT( Result == MMSYSERR_NOERROR );

@@ -126,7 +126,7 @@ static	DWORD	wodOpenHelper(WAVEMAPDATA* wom, UINT idx,
 {
     DWORD	ret;
 
-    TRACE("(%p %04x %p %p %08x)\n", wom, idx, lpDesc, lpwfx, dwFlags);
+    TRACE("wodOpenHelper(%p %04x %p %p %08x)\n", wom, idx, lpDesc, lpwfx, dwFlags);
 
     /* destination is always PCM, so the formulas below apply */
     lpwfx->nBlockAlign = (lpwfx->nChannels * lpwfx->wBitsPerSample) / 8;
@@ -156,7 +156,7 @@ static	DWORD	wodOpen(DWORD_PTR *lpdwUser, LPWAVEOPENDESC lpDesc, DWORD dwFlags)
     WAVEMAPDATA*	wom = HeapAlloc(GetProcessHeap(), 0, sizeof(WAVEMAPDATA));
     DWORD               res;
 
-    TRACE("(%p %p %08x)\n", lpdwUser, lpDesc, dwFlags);
+    TRACE("wodOpen(%p %p %08x)\n", lpdwUser, lpDesc, dwFlags);
 
     if (!wom) {
         WARN("no memory\n");

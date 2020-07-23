@@ -15,7 +15,7 @@
 
 #include "wdmaud.h"
 
-#define NDEBUG
+//#define NDEBUG
 #include <debug.h>
 #include <mmebuddy_debug.h>
 
@@ -498,6 +498,25 @@ WdmAudSetWaveDeviceFormatByLegacy(
         /* device is already open */
         return MMSYSERR_NOERROR;
     }
+    
+    DPRINT1("WdmAudSetWaveDeviceFormatByLegacy(%p, %ul, %p, %ul)\n", Instance, DeviceId, WaveFormat, WaveFormatSize);
+    
+    /*
+    WORD wFormatTag;
+	WORD nChannels;
+	DWORD nSamplesPerSec;
+	DWORD nAvgBytesPerSec;
+	WORD nBlockAlign;
+	WORD wBitsPerSample;
+	WORD cbSize;
+    */
+    DPRINT1("wFormatTag: %u\n", WaveFormat->wFormatTag);
+    DPRINT1("nChannels: %u\n", WaveFormat->nChannels);
+    DPRINT1("nSamplesPerSec: %ul\n", WaveFormat->nSamplesPerSec);
+    DPRINT1("nAvgBytesPerSec: %ul\n", WaveFormat->nAvgBytesPerSec);
+    DPRINT1("nBlockAlign: %u\n", WaveFormat->nBlockAlign);
+    DPRINT1("wBitsPerSample: %u\n", WaveFormat->wBitsPerSample);
+    DPRINT1("cbSize: %u\n", WaveFormat->cbSize);
 
     Result = GetSoundDeviceType(SoundDevice, &DeviceType);
 
@@ -519,6 +538,18 @@ WdmAudSetWaveDeviceFormatByLegacy(
     DeviceInfo.u.WaveFormatEx.nSamplesPerSec = WaveFormat->nSamplesPerSec;
     DeviceInfo.u.WaveFormatEx.nBlockAlign = WaveFormat->nBlockAlign;
     DeviceInfo.u.WaveFormatEx.nAvgBytesPerSec = WaveFormat->nAvgBytesPerSec;
+	//NT_ASSERT(FALSE);
+    if (DeviceInfo.u.WaveFormatEx.nSamplesPerSec == 0 || DeviceInfo.u.WaveFormatEx.nChannels == 0)
+        return WAVERR_BADFORMAT;
+    /*{
+        DPRINT1("DeviceInfo.u.WaveFormatEx.nSamplesPerSec is zero. Using 44100 instead.\n");
+        DeviceInfo.u.WaveFormatEx.nSamplesPerSec = 44100;
+    }
+    if ()
+    {
+        DPRINT1("DeviceInfo.u.WaveFormatEx.nChannels is zero. Using 2 instead.\n");
+        DeviceInfo.u.WaveFormatEx.nChannels = 2;
+    }*/
     DeviceInfo.u.WaveFormatEx.wBitsPerSample = (DeviceInfo.u.WaveFormatEx.nAvgBytesPerSec * 8) / (DeviceInfo.u.WaveFormatEx.nSamplesPerSec * DeviceInfo.u.WaveFormatEx.nChannels);
 #endif
 
