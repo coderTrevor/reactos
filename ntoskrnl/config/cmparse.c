@@ -128,7 +128,7 @@ CmpGetSymbolicLink(IN PHHIVE Hive,
 
     /* Add the remaining name if needed */
     if (RemainingName) Length += RemainingName->Length + sizeof(WCHAR);
-    
+
     /* Check for overflow */
     if (Length > 0xFFFF) goto Exit;
 
@@ -138,7 +138,7 @@ CmpGetSymbolicLink(IN PHHIVE Hive,
         /* We do -- allocate one */
         NewBuffer = ExAllocatePoolWithTag(PagedPool, Length, TAG_CM);
         if (!NewBuffer) goto Exit;
-        
+
         /* Setup the new string and copy the symbolic target */
         NewObjectName.Buffer = NewBuffer;
         NewObjectName.MaximumLength = (USHORT)Length;
@@ -279,7 +279,7 @@ CmpDoCreateChild(IN PHHIVE Hive,
                             0,
                             Object);
     if (!NT_SUCCESS(Status)) goto Quickie;
-    
+
     /* Setup the key body */
     KeyBody = (PCM_KEY_BODY)(*Object);
     KeyBody->Type = CM_KEY_BODY_TYPE;
@@ -378,6 +378,12 @@ CmpDoCreateChild(IN PHHIVE Hive,
 
     /* Now that the security descriptor is copied in the hive, we can free the original */
     SeDeassignSecurity(&NewDescriptor);
+
+    if (NT_SUCCESS(Status))
+    {
+        /* Send notification to registered callbacks */
+        CmpReportNotify(Kcb, Hive, Kcb->KeyCell, REG_NOTIFY_CHANGE_NAME);
+    }
 
 Quickie:
     /* Check if we got here because of failure */
@@ -687,12 +693,12 @@ CmpDoOpen(IN PHHIVE Hive,
     if (NT_SUCCESS(Status))
     {
         /* Get the key body and fill it out */
-        KeyBody = (PCM_KEY_BODY)(*Object);       
+        KeyBody = (PCM_KEY_BODY)(*Object);
         KeyBody->KeyControlBlock = Kcb;
         KeyBody->Type = CM_KEY_BODY_TYPE;
         KeyBody->ProcessID = PsGetCurrentProcessId();
         KeyBody->NotifyBlock = NULL;
-        
+
         /* Link to the KCB */
         EnlistKeyBodyWithKCB(KeyBody, 0);
 
@@ -839,7 +845,7 @@ CmpCreateLinkNode(IN PHHIVE Hive,
         HvMarkCellDirty(Context->ChildHive.KeyHive, ChildCell, FALSE);
 
         /* Get the key node */
-        KeyNode = HvGetCell(Context->ChildHive.KeyHive, ChildCell);
+        KeyNode = (PCM_KEY_NODE)HvGetCell(Context->ChildHive.KeyHive, ChildCell);
         if (!KeyNode)
         {
             /* Fail */
@@ -856,7 +862,7 @@ CmpCreateLinkNode(IN PHHIVE Hive,
         KeyNode->Flags |= KEY_HIVE_ENTRY | KEY_NO_DELETE;
 
         /* Get the link node */
-        KeyNode = HvGetCell(Hive, LinkCell);
+        KeyNode = (PCM_KEY_NODE)HvGetCell(Hive, LinkCell);
         if (!KeyNode)
         {
             /* Fail */
@@ -889,13 +895,13 @@ CmpCreateLinkNode(IN PHHIVE Hive,
         HvReleaseCell(Hive, LinkCell);
 
         /* Get the parent node */
-        KeyNode = HvGetCell(Hive, Cell);
+        KeyNode = (PCM_KEY_NODE)HvGetCell(Hive, Cell);
         if (!KeyNode)
         {
             /* Fail */
             ASSERT(FALSE);
             Status = STATUS_INSUFFICIENT_RESOURCES;
-            goto Exit;  
+            goto Exit;
         }
 
         /* Now add the subkey */
@@ -1060,7 +1066,7 @@ CmpParseKey(IN PVOID ParseObject,
 
     /* Copy the remaining name */
     Current = *RemainingName;
-    
+
     /* Check if this is a create */
     if (!(ParseContext) || !(ParseContext->CreateOperation))
     {
@@ -1177,7 +1183,7 @@ CmpParseKey(IN PVOID ParseObject,
                     /* Get the new node */
                     Cell = NextCell;
                     Node = (PCM_KEY_NODE)HvGetCell(Hive, Cell);
-                    if (!Node) ASSERT(FALSE);
+                    ASSERT(Node);
 
                     /* Check if this was the last key */
                     if (Last)

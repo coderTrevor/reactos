@@ -102,6 +102,7 @@ extern LIST_ENTRY ImageListHead;
 extern BOOL ScmInitialize;
 extern BOOL ScmShutdown;
 extern BOOL ScmLiveSetup;
+extern BOOL ScmSetupInProgress;
 extern PSECURITY_DESCRIPTOR pPipeSD;
 
 
@@ -155,6 +156,7 @@ ScmDeleteRegKey(
 
 DWORD
 ScmDecryptPassword(
+    _In_ PVOID ContextHandle,
     _In_ PBYTE pPassword,
     _In_ DWORD dwPasswordSize,
     _Out_ PWSTR *pDecryptedPassword);

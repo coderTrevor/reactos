@@ -445,12 +445,12 @@ BasepSxsCloseHandles(IN PBASE_MSG_SXS_HANDLES Handles)
     }
 }
 
+DECLSPEC_NORETURN
 VOID
 WINAPI
-BaseProcessStartup(PPROCESS_START_ROUTINE lpStartAddress)
+BaseProcessStartup(
+    _In_ PPROCESS_START_ROUTINE lpStartAddress)
 {
-    DPRINT("BaseProcessStartup(..) - setting up exception frame.\n");
-
     _SEH2_TRY
     {
         /* Set our Start Address */
@@ -1606,12 +1606,11 @@ FatalAppExitW(IN UINT uAction,
 #endif
                               &Response);
 
-#if DBG
     /* Give the user a chance to abort */
-    if ((NT_SUCCESS(Status)) && (Response == ResponseCancel)) return;
-#else
-    UNREFERENCED_LOCAL_VARIABLE(Status);
-#endif
+    if ((NT_SUCCESS(Status)) && (Response == ResponseCancel))
+    {
+        return;
+    }
 
     /* Otherwise kill the process */
     ExitProcess(0);
@@ -1659,7 +1658,7 @@ WINAPI
 GetPriorityClass(IN HANDLE hProcess)
 {
     NTSTATUS Status;
-    PROCESS_PRIORITY_CLASS PriorityClass;
+    PROCESS_PRIORITY_CLASS DECLSPEC_ALIGN(4) PriorityClass;
 
     /* Query the kernel */
     Status = NtQueryInformationProcess(hProcess,
@@ -1683,7 +1682,7 @@ GetPriorityClass(IN HANDLE hProcess)
 
     /* Failure path */
     BaseSetLastNTError(Status);
-    return FALSE;
+    return 0;
 }
 
 /*

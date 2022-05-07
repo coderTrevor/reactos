@@ -20,7 +20,7 @@ PCM_NAME_HASH_TABLE_ENTRY CmpNameCacheTable;
 
 /* FUNCTIONS *****************************************************************/
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 CmpInitializeCache(VOID)
@@ -961,8 +961,7 @@ CmpConstructName(IN PCM_KEY_CONTROL_BLOCK Kcb)
            if the key is not deleted */
         if (!DeletedKey && !MyKcb->Delete)
         {
-            KeyNode = HvGetCell(MyKcb->KeyHive, MyKcb->KeyCell);
-
+            KeyNode = (PCM_KEY_NODE)HvGetCell(MyKcb->KeyHive, MyKcb->KeyCell);
             if (!KeyNode)
             {
                 /* Failure */

@@ -17,42 +17,34 @@
 #include "resource.h"
 #include "ntwrapper.h"
 
+#define IMM_RETURN_VOID(retval) /* empty */
+#define IMM_RETURN_NONVOID(retval) return (retval)
 
+/* typedef FN_... */
+#undef DEFINE_IMM_ENTRY
+#define DEFINE_IMM_ENTRY(type, name, params, retval, retkind) \
+    typedef type (WINAPI *FN_##name)params;
+#include "immtable.h"
+
+/* define Imm32ApiTable */
 typedef struct
 {
-    BOOL (WINAPI* pImmIsIME) (HKL);
-    LRESULT (WINAPI* pImmEscapeA) (HKL, HIMC, UINT, LPVOID);
-    LRESULT (WINAPI* pImmEscapeW) (HKL, HIMC, UINT, LPVOID);
-    LONG (WINAPI* pImmGetCompositionStringA) (HIMC, DWORD, LPVOID, DWORD);
-    LONG (WINAPI* pImmGetCompositionStringW) (HIMC, DWORD, LPVOID, DWORD);
-    BOOL (WINAPI* pImmGetCompositionFontA) (HIMC, LPLOGFONTA);
-    BOOL (WINAPI* pImmGetCompositionFontW) (HIMC, LPLOGFONTW);
-    BOOL (WINAPI* pImmSetCompositionFontA)(HIMC, LPLOGFONTA);
-    BOOL (WINAPI* pImmSetCompositionFontW)(HIMC, LPLOGFONTW);
-    BOOL (WINAPI* pImmGetCompositionWindow) (HIMC, LPCOMPOSITIONFORM);
-    BOOL (WINAPI* pImmSetCompositionWindow) (HIMC, LPCOMPOSITIONFORM);
-    HIMC (WINAPI* pImmAssociateContext) (HWND, HIMC);
-    BOOL (WINAPI* pImmReleaseContext) (HWND, HIMC);
-    HIMC (WINAPI* pImmGetContext) (HWND);
-    HWND (WINAPI* pImmGetDefaultIMEWnd) (HWND);
-    BOOL (WINAPI* pImmNotifyIME) (HIMC, DWORD, DWORD, DWORD);
-    BOOL (WINAPI* pImmRegisterClient) (PVOID, HINSTANCE);
-    UINT (WINAPI* pImmProcessKey) (HWND, HKL, UINT, LPARAM, DWORD);
-
+#undef DEFINE_IMM_ENTRY
+#define DEFINE_IMM_ENTRY(type, name, params, retval, retkind) \
+    FN_##name p##name;
+#include "immtable.h"
 } Imm32ApiTable;
-
 
 /* global variables */
 extern HINSTANCE User32Instance;
 #define user32_module User32Instance
 extern PPROCESSINFO g_ppi;
-extern ULONG_PTR g_ulSharedDelta;
-extern PSERVERINFO gpsi;
 extern SHAREDINFO gSharedInfo;
-extern BOOLEAN gfLogonProcess;
-extern BOOLEAN gfServerProcess;
+extern PSERVERINFO gpsi;
 extern PUSER_HANDLE_TABLE gHandleTable;
 extern PUSER_HANDLE_ENTRY gHandleEntries;
+extern BOOLEAN gfLogonProcess;
+extern BOOLEAN gfServerProcess;
 extern CRITICAL_SECTION U32AccelCacheLock;
 extern HINSTANCE ghImm32;
 extern RTL_CRITICAL_SECTION gcsUserApiHook;
@@ -60,6 +52,8 @@ extern USERAPIHOOK guah;
 extern HINSTANCE ghmodUserApiHook;
 extern HICON hIconSmWindows, hIconWindows;
 extern Imm32ApiTable gImmApiEntries;
+
+#define IMM_FN(name) gImmApiEntries.p##name
 
 #define IS_ATOM(x) \
   (((ULONG_PTR)(x) > 0x0) && ((ULONG_PTR)(x) < 0x10000))
@@ -134,6 +128,7 @@ VOID DeleteFrameBrushes(VOID);
 BOOL WINAPI GdiValidateHandle(HGDIOBJ);
 HANDLE FASTCALL UserGetProp(HWND hWnd, ATOM Atom, BOOLEAN SystemProp);
 BOOL WINAPI InitializeImmEntryTable(VOID);
+HRESULT User32GetImmFileName(_Out_ LPWSTR lpBuffer, _In_ size_t cchBuffer);
 BOOL WINAPI UpdatePerUserImmEnabling(VOID);
 
 /* EOF */

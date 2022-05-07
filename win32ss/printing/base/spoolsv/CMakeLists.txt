@@ -2,6 +2,8 @@
 include_directories(${REACTOS_SOURCE_DIR}/sdk/include/reactos/idl)
 add_rpc_files(server ${REACTOS_SOURCE_DIR}/sdk/include/reactos/idl/winspool.idl)
 
+spec2def(spoolsv.exe spoolsv.spec ADD_IMPORTLIB)
+
 list(APPEND SOURCE
     forms.c
     init.c
@@ -18,10 +20,20 @@ list(APPEND SOURCE
     printproviders.c
     rpcserver.c
     rpcstubs.c
+    spoolfile.c
     xcv.c
-    ${CMAKE_CURRENT_BINARY_DIR}/winspool_s.c)
+    ${CMAKE_CURRENT_BINARY_DIR}/winspool_s.c
+    ${CMAKE_CURRENT_BINARY_DIR}/spoolsv_stubs.c)
 
-add_executable(spoolsv ${SOURCE} spoolsv.rc)
+add_executable(spoolsv
+    ${SOURCE}
+    spoolsv.rc
+    ${CMAKE_CURRENT_BINARY_DIR}/spoolsv.def)
+
+set_target_properties(spoolsv
+    PROPERTIES
+    ENABLE_EXPORTS TRUE
+    DEFINE_SYMBOL "")
 
 if(USE_CLANG_CL)
     target_compile_options(spoolsv PRIVATE "-Wno-cast-calling-convention")

@@ -136,7 +136,7 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_CPLNAME_1 "de Opções de energia"
+    IDS_CPLNAME_1 "Opções de energia"
     IDS_CPLDESCRIPTION_1 "Defina as configurações de poupança de energia para o seu computador."
     IDS_PERCENT "%i%%"
     IDS_SOUND "Som"
@@ -171,5 +171,5 @@ BEGIN
     IDS_TIMEOUT16 "Nunca"
     IDS_DEL_SCHEME "Tem certeza de que deseja excluir o esquema de energia: ""%s""?"
     IDS_DEL_SCHEME_TITLE "Excluir esquema"
-    IDS_DEL_SCHEME_ERROR "Unable to delete power scheme"
+    IDS_DEL_SCHEME_ERROR "Não é possível excluir o esquema de energia"
 END

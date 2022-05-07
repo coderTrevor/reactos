@@ -160,7 +160,12 @@ USBSTOR_FdoHandleStartDevice(
     PIO_WORKITEM WorkItem;
 
     // forward irp to lower device
-    Status = USBSTOR_SyncForwardIrp(DeviceExtension->LowerDeviceObject, Irp);
+    if (!IoForwardIrpSynchronously(DeviceExtension->LowerDeviceObject, Irp))
+    {
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    Status = Irp->IoStatus.Status;
     if (!NT_SUCCESS(Status))
     {
         DPRINT1("USBSTOR_FdoHandleStartDevice Lower device failed to start %x\n", Status);
@@ -327,15 +332,7 @@ USBSTOR_FdoHandlePnp(
         case IRP_MN_QUERY_STOP_DEVICE:
         case IRP_MN_QUERY_REMOVE_DEVICE:
         {
-#if 0
-            //
-            // we can if nothing is pending
-            //
-            if (DeviceExtension->IrpPendingCount != 0 ||
-                DeviceExtension->ActiveSrb != NULL)
-#else
-            if (TRUE)
-#endif
+            if (DeviceExtension->IrpPendingCount != 0 || DeviceExtension->ActiveSrb != NULL)
             {
                 /* We have pending requests */
                 DPRINT1("Failing removal/stop request due to pending requests present\n");

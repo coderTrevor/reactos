@@ -7,8 +7,8 @@
 ---
 
 <p align=center>
-  <a href="https://reactos.org/project-news/reactos-0413-released/">
-    <img alt="ReactOS 0.4.13 Release" src="https://img.shields.io/badge/release-0.4.13-0688CB.svg">
+  <a href="https://reactos.org/project-news/reactos-0414-released/">
+    <img alt="ReactOS 0.4.14 Release" src="https://img.shields.io/badge/release-0.4.14-0688CB.svg">
   </a>
   <a href="https://reactos.org/download/">
     <img alt="Download ReactOS" src="https://img.shields.io/badge/download-latest-0688CB.svg">
@@ -32,19 +32,22 @@
 [Official chat](https://chat.reactos.org/) &bull;
 [Wiki](https://reactos.org/wiki/) &bull;
 [Forum](https://reactos.org/forum/) &bull;
+[Community Discord](https://discord.gg/7knjvhT) &bull;
 [JIRA Bug Tracker](https://jira.reactos.org/issues/) &bull;
 [ReactOS Git mirror](https://git.reactos.org/) &bull;
 [Testman](https://reactos.org/testman/)
 
 ## What is ReactOS?
 
-ReactOS™ is an Open Source effort to develop a quality operating system that is compatible with applications and drivers written for the Microsoft® Windows™ NT family of operating systems (NT4, 2000, XP, 2003, Vista, Seven).
+ReactOS™ is an Open Source effort to develop a quality operating system that is compatible with applications and drivers written for the Microsoft® Windows™ NT family of operating systems (NT4, 2000, XP, 2003, Vista, 7).
 
 The ReactOS project, although currently focused on Windows Server 2003 compatibility, is always keeping an eye toward compatibility with Windows Vista and future Windows NT releases.
 
 The code of ReactOS is licensed under [GNU GPL 2.0](https://github.com/reactos/reactos/blob/master/COPYING).
 
-***ReactOS is currently an Alpha quality operating system. This means that ReactOS is under heavy development, things may not work well and it can corrupt the data present on your hard disk. It is recommended to test ReactOS on a virtual machine or on a computer with no sensitive or critical data!***
+### Product quality warning
+
+**ReactOS is currently an Alpha quality operating system.** This means that ReactOS is under heavy development and you have to be ready to encounter some problems. Different things may not work well and it can corrupt the data present on your hard disk. It is HIGHLY recommended to test ReactOS on a virtual machine or on a computer with no sensitive or critical data!
 
 ## Building
 
@@ -90,6 +93,8 @@ __NOTE:__ The bug tracker is _not_ for discussions. Please use our [official cha
 ## Contributing  [![prwelcome.badge]](https://reactos.org/wiki/Commiting_Changes)
 
 We are always looking for developers! Check [how to contribute](CONTRIBUTING.md) if you are willing to participate.
+
+__Legal notice__: If you have seen proprietary Microsoft Windows source code (including but not limited to the leaked Windows NT 3.5, NT 4, 2000 source code and the Windows Research Kernel), your contribution won't be accepted because of potential copyright violation.
 
 Try out cloud-based ReactOS development using Gitpod and Docker:
 

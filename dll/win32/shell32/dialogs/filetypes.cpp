@@ -834,7 +834,7 @@ ActionDlg_OnBrowse(HWND hwndDlg, PACTION_DIALOG pNewAct, BOOL bEdit = FALSE)
     ofn.lpstrFile = szFile;
     ofn.nMaxFile = _countof(szFile);
     ofn.lpstrTitle = strTitle;
-    ofn.Flags = OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
+    ofn.Flags = OFN_EXPLORER | OFN_ENABLESIZING | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
     ofn.lpstrDefExt = L"exe";
     if (GetOpenFileNameW(&ofn))
     {
@@ -1482,7 +1482,7 @@ FileTypesDlg_InitListView(HWND hwndDlg, HWND hListView)
     LVCOLUMNW col;
     WCHAR szName[50];
     DWORD dwStyle;
-    INT columnSize = 140;
+    INT columnSize;
 
     if (!LoadStringW(shell32_hInstance, IDS_COLUMN_EXTENSION, szName, _countof(szName)))
     {
@@ -1495,7 +1495,7 @@ FileTypesDlg_InitListView(HWND hwndDlg, HWND hListView)
 
     GetClientRect(hListView, &clientRect);
     ZeroMemory(&col, sizeof(LV_COLUMN));
-    columnSize      = 120;
+    columnSize      = (clientRect.right - clientRect.left) / 4;
     col.iSubItem    = 0;
     col.mask        = LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM | LVCF_FMT;
     col.fmt         = LVCFMT_FIXED_WIDTH;
@@ -1512,7 +1512,7 @@ FileTypesDlg_InitListView(HWND hwndDlg, HWND hListView)
     }
 
     col.iSubItem    = 1;
-    col.cx          = clientRect.right - clientRect.left - columnSize;
+    col.cx          = clientRect.right - clientRect.left - columnSize - GetSystemMetrics(SM_CYVSCROLL);
     col.cchTextMax  = wcslen(szName);
     col.pszText     = szName;
     SendMessageW(hListView, LVM_INSERTCOLUMNW, 1, (LPARAM)&col);

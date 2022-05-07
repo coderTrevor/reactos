@@ -179,7 +179,7 @@ NTSTATUS tdiGetIpAddrsForIpEntity
                                 INFO_TYPE_PROVIDER,
                                 IP_MIB_ADDRTABLE_ENTRY_ID,
                                 CL_NL_ENTITY,
-				ent->tei_instance,
+                                ent->tei_instance,
                                 0,
                                 sizeof(IPAddrEntry),
                                 (PVOID *)addrs,
@@ -334,6 +334,10 @@ DWORD getIPStats(PMIB_IPSTATS stats, DWORD family)
 {
   if (!stats)
     return ERROR_INVALID_PARAMETER;
+
+  if (family != AF_INET && family != AF_INET6)
+    return ERROR_INVALID_PARAMETER;
+
   return NO_ERROR;
 }
 
@@ -341,6 +345,10 @@ DWORD getTCPStats(MIB_TCPSTATS *stats, DWORD family)
 {
   if (!stats)
     return ERROR_INVALID_PARAMETER;
+
+  if (family != AF_INET && family != AF_INET6)
+    return ERROR_INVALID_PARAMETER;
+
   return NO_ERROR;
 }
 
@@ -348,6 +356,10 @@ DWORD getUDPStats(MIB_UDPSTATS *stats, DWORD family)
 {
   if (!stats)
     return ERROR_INVALID_PARAMETER;
+
+  if (family != AF_INET && family != AF_INET6)
+    return ERROR_INVALID_PARAMETER;
+
   return NO_ERROR;
 }
 
@@ -380,7 +392,7 @@ DWORD getNumRoutes(void)
             memset( &isnmp, 0, sizeof( isnmp ) );
             status = tdiGetMibForIpEntity( tcpFile, &entitySet[i], &isnmp );
             if( !NT_SUCCESS(status) ) {
-                ERR("tdiGetMibForIpEntity returned 0x%08lx, for i = %d", status, i);
+                ERR("tdiGetMibForIpEntity returned 0x%08lx, for i = %d\n", status, i);
                 numRoutes = 0;
                 break;
             }
@@ -440,7 +452,7 @@ RouteTable *getRouteTable(void)
         getNthIpEntity( tcpFile, i, &ent );
 
         tdiGetRoutesForIpEntity( tcpFile, &ent, &route_set, &numRoutes );
-        
+
         if( !route_set ) {
             closeTcpFile( tcpFile );
             HeapFree( GetProcessHeap(), 0, out_route_table );

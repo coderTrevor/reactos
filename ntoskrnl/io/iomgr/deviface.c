@@ -103,7 +103,7 @@ OpenRegistryHandlesFromSymbolicLink(IN PUNICODE_STRING SymbolicLinkName,
                          &ObjectAttributes,
                          0,
                          NULL,
-                         REG_OPTION_VOLATILE,
+                         REG_OPTION_NON_VOLATILE,
                          NULL);
     ZwClose(ClassesKey);
     if (!NT_SUCCESS(Status))
@@ -154,7 +154,7 @@ OpenRegistryHandlesFromSymbolicLink(IN PUNICODE_STRING SymbolicLinkName,
                          &ObjectAttributes,
                          0,
                          NULL,
-                         REG_OPTION_VOLATILE,
+                         REG_OPTION_NON_VOLATILE,
                          NULL);
     if (!NT_SUCCESS(Status))
     {
@@ -172,7 +172,7 @@ OpenRegistryHandlesFromSymbolicLink(IN PUNICODE_STRING SymbolicLinkName,
                          &ObjectAttributes,
                          0,
                          NULL,
-                         REG_OPTION_VOLATILE,
+                         REG_OPTION_NON_VOLATILE,
                          NULL);
     if (!NT_SUCCESS(Status))
     {
@@ -1060,7 +1060,7 @@ IoRegisterDeviceInterface(IN PDEVICE_OBJECT PhysicalDeviceObject,
         &ObjectAttributes,
         0, /* TileIndex */
         NULL, /* Class */
-        REG_OPTION_VOLATILE,
+        REG_OPTION_NON_VOLATILE,
         NULL); /* Disposition */
 
     if (!NT_SUCCESS(Status))
@@ -1111,7 +1111,7 @@ IoRegisterDeviceInterface(IN PDEVICE_OBJECT PhysicalDeviceObject,
         &ObjectAttributes,
         0, /* TileIndex */
         NULL, /* Class */
-        REG_OPTION_VOLATILE,
+        REG_OPTION_NON_VOLATILE,
         NULL); /* Disposition */
 
     if (!NT_SUCCESS(Status))
@@ -1175,7 +1175,7 @@ IoRegisterDeviceInterface(IN PDEVICE_OBJECT PhysicalDeviceObject,
         &ObjectAttributes,
         0, /* TileIndex */
         NULL, /* Class */
-        REG_OPTION_VOLATILE,
+        REG_OPTION_NON_VOLATILE,
         NULL); /* Disposition */
 
     if (!NT_SUCCESS(Status))
@@ -1463,12 +1463,8 @@ IoSetDeviceInterfaceState(IN PUNICODE_STRING SymbolicLinkName,
     ExFreePoolWithTag(DeviceInstance.Buffer, TAG_IO);
 
     EventGuid = Enable ? &GUID_DEVICE_INTERFACE_ARRIVAL : &GUID_DEVICE_INTERFACE_REMOVAL;
-    IopNotifyPlugPlayNotification(
-        PhysicalDeviceObject,
-        EventCategoryDeviceInterfaceChange,
-        EventGuid,
-        &DeviceGuid,
-        (PVOID)SymbolicLinkName);
+
+    PiNotifyDeviceInterfaceChange(EventGuid, &DeviceGuid, SymbolicLinkName);
 
     ObDereferenceObject(PhysicalDeviceObject);
     DPRINT("Status %x\n", Status);

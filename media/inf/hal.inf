@@ -9,7 +9,7 @@ LayoutFile = layout.inf
 Class      = Computer
 ClassGUID  = {4D36E966-E325-11CE-BFC1-08002BE10318}
 Provider   = %ReactOS%
-DriverVer  = 8/15/2011,1.00.0.0
+DriverVer  = 08/15/2011,1.00.0.0
 
 [DestinationDirs]
 DefaultDestDir = 12
@@ -24,6 +24,7 @@ HKR, , Icon,           0, "-27"
 [Manufacturer]
 %GenericMfg% = GenericMfg
 %MsftMfg% = MsftMfg
+%NecMfg% = NecMfg
 
 [GenericMfg]
 %acpipic_up.DeviceDesc% = NO_DRV,acpipic_up
@@ -31,6 +32,9 @@ HKR, , Icon,           0, "-27"
 
 [MsftMfg]
 %xbox.DeviceDesc% = NO_DRV,xbox
+
+[NecMfg]
+%pc98_up.DeviceDesc% = NO_DRV,pc98_up
 
 ;------------------------------ NO DRIVER -----------------------------
 
@@ -53,6 +57,20 @@ e_isa_up.DeviceDesc = "Standard Uniprocessor PC"
 MsftMfg = "Microsoft Corporation"
 xbox.DeviceDesc = "Original Xbox (x86 based)"
 
+NecMfg = "NEC"
+pc98_up.DeviceDesc = "Uniprocessor NEC PC-98"
+
+[Strings.0404]
+ComputerClassName = "電腦"
+
+GenericMfg = "(標準電腦)"
+acpipic_up.DeviceDesc = "ACPI 單處理器 PC"
+e_isa_up.DeviceDesc = "標準單處理器 PC"
+
+xbox.DeviceDesc = "原版 Xbox (基於 x86)"
+
+pc98_up.DeviceDesc = "單處理器 NEC PC-98"
+
 [Strings.0405]
 ComputerClassName = "Počítač"
 GenericMfg = "(Obecné počítače)"
@@ -61,6 +79,8 @@ e_isa_up.DeviceDesc = "Standardní jednoprocesorové PC"
 
 MsftMfg = "Microsoft Corporation"
 xbox.DeviceDesc = "Original Xbox (x86 based)"
+
+pc98_up.DeviceDesc = "Uniprocessor NEC PC-98"
 
 [Strings.0a]
 ReactOS = "Equipo de ReactOS"
@@ -74,6 +94,8 @@ e_isa_up.DeviceDesc = "PC con uniprocesador estándar"
 MsftMfg = "Microsoft Corporation"
 xbox.DeviceDesc = "Original Xbox (x86 based)"
 
+pc98_up.DeviceDesc = "Uniprocessor NEC PC-98"
+
 [Strings.0415]
 ReactOS = "Zespół ReactOS"
 
@@ -84,7 +106,9 @@ acpipic_up.DeviceDesc = "Komputer PC z interfejsem ACPI"
 e_isa_up.DeviceDesc = "Standardowy komputer PC"
 
 MsftMfg = "Microsoft Corporation"
-xbox.DeviceDesc = "Original Xbox (x86 based)"
+xbox.DeviceDesc = "Oryginalny Xbox (oparty na procesorze x86)"
+
+pc98_up.DeviceDesc = "Komputer NEC PC-98"
 
 [Strings.0418]
 ReactOS = "Echipa ReactOS"
@@ -98,6 +122,8 @@ e_isa_up.DeviceDesc = "PC uniprocesor standard"
 MsftMfg = "Microsoft Corporation"
 xbox.DeviceDesc = "Original Xbox (x86 based)"
 
+pc98_up.DeviceDesc = "Uniprocessor NEC PC-98"
+
 [Strings.0419]
 ReactOS = "Команда ReactOS"
 
@@ -110,17 +136,21 @@ e_isa_up.DeviceDesc = "Стандартный однопроцессорный �
 MsftMfg = "Корпорация Microsoft"
 xbox.DeviceDesc = "Оригинальный Xbox (на базе x86)"
 
+pc98_up.DeviceDesc = "Однопроцессорный NEC PC-98"
+
 [Strings.041f]
 ReactOS = "ReactOS Takımı"
 
 ComputerClassName = "Bilgisayar"
 
-GenericMfg = "(Umûmî Bilgisayarlar)"
+GenericMfg = "(Genel Bilgisayarlar)"
 acpipic_up.DeviceDesc = "ACPI Tek İşlemcili PC"
-e_isa_up.DeviceDesc = "Ölçünlü Tek İşlemcili PC"
+e_isa_up.DeviceDesc = "Standart Tek İşlemcili PC"
 
 MsftMfg = "Microsoft Corporation"
-xbox.DeviceDesc = "Original Xbox (x86 based)"
+xbox.DeviceDesc = "Özgün Xbox (x86 tabanlı)"
+
+pc98_up.DeviceDesc = "Tek İşlemcili NEC PC-98"
 
 [Strings.0422]
 ReactOS = "Команда ReactOS"
@@ -134,6 +164,8 @@ e_isa_up.DeviceDesc = "Стандартний однопроцесорний П�
 MsftMfg = "Microsoft Corporation"
 xbox.DeviceDesc = "Original Xbox (x86 based)"
 
+pc98_up.DeviceDesc = "Однопроцесорний NEC PC-98"
+
 [Strings.0804]
 GenericMfg = "(通用计算机)"
 acpipic_up.DeviceDesc = "ACPI 单处理器 PC"
@@ -141,3 +173,27 @@ e_isa_up.DeviceDesc = "标准单处理器 PC"
 
 MsftMfg = "Microsoft Corporation"
 xbox.DeviceDesc = "Original Xbox (x86 based)"
+
+pc98_up.DeviceDesc = "Uniprocessor NEC PC-98"
+
+[Strings.0816]
+ReactOS = "Equipa ReactOS"
+ComputerClassName = "Computador"
+GenericMfg = "(Computador Genérico)"
+acpipic_up.DeviceDesc = "ACPI Uniprocessor PC"
+e_isa_up.DeviceDesc = "Standard Uniprocessor PC"
+MsftMfg = "Microsoft Corporation"
+xbox.DeviceDesc = "Original Xbox (x86 based)"
+NecMfg = "NEC"
+pc98_up.DeviceDesc = "Uniprocessor NEC PC-98"
+
+[Strings.0C04]
+ComputerClassName = "電腦"
+
+GenericMfg = "(標準電腦)"
+acpipic_up.DeviceDesc = "ACPI 單處理器 PC"
+e_isa_up.DeviceDesc = "標準單處理器 PC"
+
+xbox.DeviceDesc = "原版 Xbox (基於 x86)"
+
+pc98_up.DeviceDesc = "單處理器 NEC PC-98"

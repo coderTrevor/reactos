@@ -14,29 +14,11 @@
 
 #include <debug.h>
 
-class CPortWaveRT : public IPortWaveRT,
-                    public IPortEvents,
-                    public ISubdevice
+class CPortWaveRT : public CUnknownImpl<IPortWaveRT, IPortEvents, ISubdevice>
 {
 public:
     STDMETHODIMP QueryInterface( REFIID InterfaceId, PVOID* Interface);
 
-    STDMETHODIMP_(ULONG) AddRef()
-    {
-        InterlockedIncrement(&m_Ref);
-        return m_Ref;
-    }
-    STDMETHODIMP_(ULONG) Release()
-    {
-        InterlockedDecrement(&m_Ref);
-
-        if (!m_Ref)
-        {
-            delete this;
-            return 0;
-        }
-        return m_Ref;
-    }
     IMP_IPortWaveRT;
     IMP_ISubdevice;
     IMP_IPortEvents;
@@ -57,11 +39,9 @@ protected:
 
     friend PMINIPORTWAVERT GetWaveRTMiniport(IN IPortWaveRT* iface);
     friend PDEVICE_OBJECT GetDeviceObjectFromPortWaveRT(PPORTWAVERT iface);
-
-    LONG m_Ref;
 };
 
-static GUID InterfaceGuids[3] = 
+static GUID InterfaceGuids[3] =
 {
     {
         /// KS_CATEGORY_AUDIO
@@ -145,7 +125,7 @@ CPortWaveRT::QueryInterface(
         IsEqualGUIDAligned(refiid, IID_IUnknown))
     {
         *Output = PVOID(PPORTWAVERT(this));
-		PUNKNOWN(*Output)->AddRef();
+        PUNKNOWN(*Output)->AddRef();
         return STATUS_SUCCESS;
     }
     else if (IsEqualGUIDAligned(refiid, IID_IPortEvents))
@@ -269,12 +249,12 @@ CPortWaveRT::Init(
     }
 
     // create the subdevice descriptor
-    Status = PcCreateSubdeviceDescriptor(&m_SubDeviceDescriptor, 
+    Status = PcCreateSubdeviceDescriptor(&m_SubDeviceDescriptor,
                                          3,
                                          InterfaceGuids,
-                                         0, 
+                                         0,
                                          NULL,
-                                         2, 
+                                         2,
                                          WaveRTPropertySet,
                                          0,
                                          0,
@@ -454,7 +434,7 @@ CPortWaveRT::PinCount(
 
     // FIXME
     // scan filter descriptor
-    
+
     return STATUS_UNSUCCESSFUL;
 }
 

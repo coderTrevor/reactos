@@ -2,6 +2,8 @@
  *                         I/O Manager Functions                              *
  ******************************************************************************/
 
+#include <section_attribs.h>
+
 $if (_WDMDDK_)
 /*
  * NTSTATUS
@@ -1138,6 +1140,7 @@ IoRegisterDeviceInterface(
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 _Must_inspect_result_
+CODE_SEG("PAGE")
 NTKERNELAPI
 NTSTATUS
 NTAPI
@@ -1289,6 +1292,7 @@ IoStopTimer(
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 __drv_freesMem(Pool)
+CODE_SEG("PAGE")
 NTKERNELAPI
 NTSTATUS
 NTAPI
@@ -2348,6 +2352,7 @@ IoUninitializeWorkItem(
   _Inout_ PIO_WORKITEM IoWorkItem);
 
 _IRQL_requires_max_(DISPATCH_LEVEL)
+NTKRNLVISTAAPI
 VOID
 NTAPI
 IoQueueWorkItemEx(
@@ -2356,6 +2361,7 @@ IoQueueWorkItemEx(
   _In_ WORK_QUEUE_TYPE QueueType,
   _In_opt_ __drv_aliasesMem PVOID Context);
 
+NTKRNLVISTAAPI
 IO_PRIORITY_HINT
 NTAPI
 IoGetIoPriorityHint(
@@ -2400,7 +2406,7 @@ IoRequestDeviceEjectEx(
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 _Must_inspect_result_
-NTKERNELAPI
+NTKRNLVISTAAPI
 NTSTATUS
 NTAPI
 IoSetDevicePropertyData(
@@ -2414,7 +2420,7 @@ IoSetDevicePropertyData(
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 _Must_inspect_result_
-NTKERNELAPI
+NTKRNLVISTAAPI
 NTSTATUS
 NTAPI
 IoGetDevicePropertyData(
@@ -2473,6 +2479,7 @@ NTAPI
 IoClearIrpExtraCreateParameter(
   _Inout_ PIRP Irp);
 
+NTKRNLVISTAAPI
 NTSTATUS
 NTAPI
 IoGetIrpExtraCreateParameter(
@@ -2593,6 +2600,47 @@ IoReplaceFileObjectName(
   _In_ USHORT FileNameLength);
 $endif (_NTIFS_)
 #endif /* (NTDDI_VERSION >= NTDDI_WIN7) */
+
+#if (NTDDI_VERSION >= NTDDI_WIN8)
+
+$if (_WDMDDK_)
+_IRQL_requires_max_(PASSIVE_LEVEL)
+_Must_inspect_result_
+NTKRNLVISTAAPI
+NTSTATUS
+IoSetDeviceInterfacePropertyData(
+  _In_ PUNICODE_STRING SymbolicLinkName,
+  _In_ CONST DEVPROPKEY *PropertyKey,
+  _In_ LCID Lcid,
+  _In_ ULONG Flags,
+  _In_ DEVPROPTYPE Type,
+  _In_ ULONG Size,
+  _In_reads_bytes_opt_(Size) PVOID Data);
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+_Must_inspect_result_
+NTKERNELAPI
+NTSTATUS
+IoGetDeviceInterfacePropertyData (
+  _In_ PUNICODE_STRING SymbolicLinkName,
+  _In_ CONST DEVPROPKEY *PropertyKey,
+  _In_ LCID Lcid,
+  _Reserved_ ULONG Flags,
+  _In_ ULONG Size,
+  _Out_writes_bytes_to_(Size, *RequiredSize) PVOID Data,
+  _Out_ PULONG RequiredSize,
+  _Out_ PDEVPROPTYPE Type);
+$endif (_WDMDDK_)
+$if (_NTDDK_)
+
+NTKRNLVISTAAPI
+VOID
+IoSetMasterIrpStatus(
+  _Inout_ PIRP MasterIrp,
+  _In_ NTSTATUS Status);
+$endif (_NTDDK_)
+
+#endif /* (NTDDI_VERSION >= NTDDI_WIN8) */
 
 $if (_WDMDDK_)
 #if defined(_WIN64)

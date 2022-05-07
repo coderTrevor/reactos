@@ -40,7 +40,7 @@ void KiSystemCallEntry32();
 
 /* FUNCTIONS *****************************************************************/
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 KiInitMachineDependent(VOID)
@@ -108,8 +108,8 @@ KiInitializePcr(IN PKIPCR Pcr,
     Pcr->MinorVersion = PCR_MINOR_VERSION;
 
     /* Set the PRCB Version */
-    Pcr->Prcb.MajorVersion = 1;
-    Pcr->Prcb.MinorVersion = 1;
+    Pcr->Prcb.MajorVersion = PRCB_MAJOR_VERSION;
+    Pcr->Prcb.MinorVersion = PRCB_MINOR_VERSION;
 
     /* Set the Build Type */
     Pcr->Prcb.BuildType = 0;
@@ -268,7 +268,7 @@ KiInitializeTss(IN PKTSS64 Tss,
     __ltr(KGDT64_SYS_TSS);
 }
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 KiInitializeKernelMachineDependent(
@@ -365,7 +365,8 @@ KiInitModuleList(IN PLOADER_PARAMETER_BLOCK LoaderBlock)
     }
 }
 
-INIT_FUNCTION
+CODE_SEG("INIT")
+DECLSPEC_NORETURN
 VOID
 NTAPI
 KiSystemStartup(IN PLOADER_PARAMETER_BLOCK LoaderBlock)

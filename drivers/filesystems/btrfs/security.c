@@ -180,7 +180,7 @@ void add_group_mapping(WCHAR* sidstring, ULONG sidstringlength, uint32_t gid) {
     while (sidstringlength > 0) {
         val = 0;
         i = 0;
-        while (sidstring[i] != '-' && i < sidstringlength) {
+        while (i < sidstringlength && sidstring[i] != '-') {
             if (sidstring[i] >= '0' && sidstring[i] <= '9') {
                 val *= 10;
                 val += sidstring[i] - '0';
@@ -678,7 +678,7 @@ NTSTATUS __stdcall drv_query_security(IN PDEVICE_OBJECT DeviceObject, IN PIRP Ir
     top_level = is_top_level(Irp);
 
     if (Vcb && Vcb->type == VCB_TYPE_VOLUME) {
-        Status = vol_query_security(DeviceObject, Irp);
+        Status = STATUS_INVALID_DEVICE_REQUEST;
         goto end;
     } else if (!Vcb || Vcb->type != VCB_TYPE_FS) {
         Status = STATUS_INVALID_PARAMETER;
@@ -842,7 +842,7 @@ NTSTATUS __stdcall drv_set_security(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
     top_level = is_top_level(Irp);
 
     if (Vcb && Vcb->type == VCB_TYPE_VOLUME) {
-        Status = vol_set_security(DeviceObject, Irp);
+        Status = STATUS_INVALID_DEVICE_REQUEST;
         goto end;
     } else if (!Vcb || Vcb->type != VCB_TYPE_FS) {
         Status = STATUS_INVALID_PARAMETER;

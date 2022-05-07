@@ -51,9 +51,9 @@ VOID
 NTAPI
 CsrSetToNormalPriority(VOID)
 {
-    KPRIORITY BasePriority = (8 + 1) + 4;
+    KPRIORITY BasePriority = PROCESS_PRIORITY_NORMAL_FOREGROUND + 4;
 
-    /* Set the Priority */
+    /* Set the base priority */
     NtSetInformationProcess(NtCurrentProcess(),
                             ProcessBasePriority,
                             &BasePriority,
@@ -64,8 +64,8 @@ CsrSetToNormalPriority(VOID)
  * @name CsrSetToShutdownPriority
  *
  * The CsrSetToShutdownPriority routine sets the current NT Process'
- * priority to the boosted priority for CSR Processes doing shutdown.
- * Additonally, it acquires the Shutdown Privilege required for shutdown.
+ * priority to the boosted priority for CSR Processes doing shutdown,
+ * acquiring also the required Increase Base Priority privilege.
  *
  * @param None.
  *
@@ -79,16 +79,16 @@ VOID
 NTAPI
 CsrSetToShutdownPriority(VOID)
 {
-    KPRIORITY BasePriority = (8 + 1) + 6;
+    KPRIORITY BasePriority = PROCESS_PRIORITY_NORMAL_FOREGROUND + 6;
     BOOLEAN Old;
 
-    /* Get the shutdown privilege */
-    if (NT_SUCCESS(RtlAdjustPrivilege(SE_SHUTDOWN_PRIVILEGE,
+    /* Get the Increase Base Priority privilege */
+    if (NT_SUCCESS(RtlAdjustPrivilege(SE_INC_BASE_PRIORITY_PRIVILEGE,
                                       TRUE,
                                       FALSE,
                                       &Old)))
     {
-        /* Set the Priority */
+        /* Set the base priority */
         NtSetInformationProcess(NtCurrentProcess(),
                                 ProcessBasePriority,
                                 &BasePriority,
@@ -167,8 +167,9 @@ CsrLockedDereferenceProcess(PCSR_PROCESS CsrProcess)
     {
         /* Call the generic cleanup code */
         DPRINT1("Should kill process: %p\n", CsrProcess);
-        CsrAcquireProcessLock();
         CsrProcessRefcountZero(CsrProcess);
+        /* Acquire the lock again, it was released in CsrProcessRefcountZero */
+        CsrAcquireProcessLock();
     }
 }
 
@@ -611,7 +612,7 @@ CsrCreateProcess(IN HANDLE hProcess,
     CsrProcess->ProcessHandle = hProcess;
     CsrProcess->ShutdownLevel = 0x280;
 
-    /* Set the Priority to Background */
+    /* Set the priority to Background */
     CsrSetBackgroundPriority(CsrProcess);
 
     /* Insert the Process */

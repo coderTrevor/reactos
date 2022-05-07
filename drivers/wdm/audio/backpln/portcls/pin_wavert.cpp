@@ -14,27 +14,11 @@
 
 #include <debug.h>
 
-class CPortPinWaveRT : public IPortPinWaveRT
+class CPortPinWaveRT : public CUnknownImpl<IPortPinWaveRT>
 {
 public:
     STDMETHODIMP QueryInterface( REFIID InterfaceId, PVOID* Interface);
 
-    STDMETHODIMP_(ULONG) AddRef()
-    {
-        InterlockedIncrement(&m_Ref);
-        return m_Ref;
-    }
-    STDMETHODIMP_(ULONG) Release()
-    {
-        InterlockedDecrement(&m_Ref);
-
-        if (!m_Ref)
-        {
-            delete this;
-            return 0;
-        }
-        return m_Ref;
-    }
     IMP_IPortPinWaveRT;
     CPortPinWaveRT(IUnknown *OuterUnknown){}
     virtual ~CPortPinWaveRT(){}
@@ -68,8 +52,6 @@ protected:
     MEMORY_CACHING_TYPE m_CacheType;
     PMDL m_Mdl;
 
-    LONG m_Ref;
-
     NTSTATUS NTAPI HandleKsProperty(IN PIRP Irp);
     NTSTATUS NTAPI HandleKsStream(IN PIRP Irp);
     VOID NTAPI SetStreamState(IN KSSTATE State);
@@ -96,7 +78,7 @@ CPortPinWaveRT::QueryInterface(
 {
     DPRINT("IServiceSink_fnQueryInterface entered\n");
 
-    if (IsEqualGUIDAligned(refiid, IID_IIrpTarget) || 
+    if (IsEqualGUIDAligned(refiid, IID_IIrpTarget) ||
         IsEqualGUIDAligned(refiid, IID_IUnknown))
     {
         *Output = PVOID(PUNKNOWN((IIrpTarget*)this));
@@ -309,7 +291,7 @@ CPortPinWaveRT::DeviceIoControl(
     {
         case IOCTL_KS_PROPERTY:
             return HandleKsProperty(Irp);
-		
+
         case IOCTL_KS_ENABLE_EVENT:
             /* FIXME UNIMPLEMENTED */
             UNIMPLEMENTED_ONCE;
@@ -334,11 +316,11 @@ CPortPinWaveRT::DeviceIoControl(
             /* FIXME UNIMPLEMENTED */
             UNIMPLEMENTED_ONCE;
             break;
-			
+
         case IOCTL_KS_WRITE_STREAM:
         case IOCTL_KS_READ_STREAM:
             return HandleKsStream(Irp);
-			
+
         default:
             return KsDefaultDeviceIoCompletion(DeviceObject, Irp);
     }

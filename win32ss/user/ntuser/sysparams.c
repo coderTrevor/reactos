@@ -73,6 +73,7 @@ static const WCHAR* VAL_SCRLLLINES = L"WheelScrollLines";
 static const WCHAR* VAL_CLICKLOCKTIME = L"ClickLockTime";
 static const WCHAR* VAL_PAINTDESKVER = L"PaintDesktopVersion";
 static const WCHAR* VAL_CARETRATE = L"CursorBlinkRate";
+static const WCHAR* VAL_CARETWIDTH = L"CaretWidth";
 #if (_WIN32_WINNT >= 0x0600)
 static const WCHAR* VAL_SCRLLCHARS = L"WheelScrollChars";
 #endif
@@ -288,6 +289,7 @@ SpiUpdatePerUserSystemParameters(VOID)
     gspv.iWheelScrollLines = SpiLoadInt(KEY_DESKTOP, VAL_SCRLLLINES, 3);
     gspv.dwMouseClickLockTime = SpiLoadDWord(KEY_DESKTOP, VAL_CLICKLOCKTIME, 1200);
     gpsi->dtCaretBlink = SpiLoadInt(KEY_DESKTOP, VAL_CARETRATE, 530);
+    gspv.dwCaretWidth = SpiLoadDWord(KEY_DESKTOP, VAL_CARETWIDTH, 1);
     gspv.dwUserPrefMask = SpiLoadUserPrefMask(UPM_DEFAULT);
     gspv.bMouseClickLock = (gspv.dwUserPrefMask & UPM_CLICKLOCK) != 0;
     gspv.bMouseCursorShadow = (gspv.dwUserPrefMask & UPM_CURSORSHADOW) != 0;
@@ -949,7 +951,7 @@ SpiGetSet(UINT uiAction, UINT uiParam, PVOID pvParam, FLONG fl)
 
             /* Fixup user's structure size */
             metrics->cbSize = sizeof(NONCLIENTMETRICSW);
-            
+
             if (!SpiSet(&gspv.ncm, metrics, sizeof(NONCLIENTMETRICSW), fl))
                 return 0;
 
@@ -1048,27 +1050,33 @@ SpiGetSet(UINT uiAction, UINT uiParam, PVOID pvParam, FLONG fl)
 
         case SPI_SETWORKAREA:
         {
-            /* FIXME: We should set the work area of the monitor
-                      that contains the specified rectangle */
-            PMONITOR pmonitor = UserGetPrimaryMonitor();
-            RECT rcWorkArea;
+            PMONITOR pmonitor;
+            RECTL rcWorkArea, rcIntersect;
 
-            if(!pmonitor)
+            if (!pvParam)
                 return 0;
 
-            if (!SpiSet(&rcWorkArea, pvParam, sizeof(RECTL), fl))
+            RtlCopyMemory(&rcWorkArea, pvParam, sizeof(rcWorkArea));
+
+            /* fail if empty */
+            if (RECTL_bIsEmptyRect(&rcWorkArea))
                 return 0;
 
-            /* Verify the new values */
-            if (rcWorkArea.left < 0 ||
-                rcWorkArea.top < 0 ||
-                rcWorkArea.right > gpsi->aiSysMet[SM_CXSCREEN] ||
-                rcWorkArea.bottom > gpsi->aiSysMet[SM_CYSCREEN] ||
-                rcWorkArea.right <= rcWorkArea.left ||
-                rcWorkArea.bottom <= rcWorkArea.top)
+            /* get the nearest monitor */
+            pmonitor = UserMonitorFromRect(&rcWorkArea, MONITOR_DEFAULTTONEAREST);
+            if (!pmonitor)
                 return 0;
 
-            pmonitor->rcWork = rcWorkArea;
+            /* fail unless work area is completely in monitor */
+            if (!RECTL_bIntersectRect(&rcIntersect, &pmonitor->rcMonitor, &rcWorkArea) ||
+                !RtlEqualMemory(&rcIntersect, &rcWorkArea, sizeof(rcIntersect)))
+            {
+                return 0;
+            }
+
+            if (!SpiSet(&pmonitor->rcWork, pvParam, sizeof(RECTL), fl))
+                return 0;
+
             if (fl & SPIF_UPDATEINIFILE)
             {
                 // FIXME: What to do?
@@ -1577,7 +1585,17 @@ SpiGetSet(UINT uiAction, UINT uiParam, PVOID pvParam, FLONG fl)
             return SpiSetUserPref(UPM_LISTBOXSMOOTHSCROLLING, pvParam, fl);
 
         case SPI_GETGRADIENTCAPTIONS:
-            return SpiGetUserPref(UPM_GRADIENTCAPTIONS, pvParam, fl);
+        {
+            if (NtGdiGetDeviceCaps(ScreenDeviceContext, BITSPIXEL) <= 8)
+            {
+                INT iValue = 0;
+                return SpiGetInt(pvParam, &iValue, fl);
+            }
+            else
+            {
+                return SpiGetUserPref(UPM_GRADIENTCAPTIONS, pvParam, fl);
+            }
+        }
 
         case SPI_SETGRADIENTCAPTIONS:
             return SpiSetUserPref(UPM_GRADIENTCAPTIONS, pvParam, fl);

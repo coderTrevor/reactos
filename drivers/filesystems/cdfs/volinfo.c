@@ -80,7 +80,7 @@ CdQueryFsSectorSizeInfo (
 #pragma alloc_text(PAGE, CdQueryFsSectorSizeInfo)
 #endif
 
-
+
 _Requires_lock_held_(_Global_critical_region_)
 NTSTATUS
 CdCommonQueryVolInfo (
@@ -160,6 +160,10 @@ Return Value:
         //  and false if it couldn't wait for any I/O to complete.
         //
 
+#ifdef __REACTOS__
+        RtlZeroMemory(Irp->AssociatedIrp.SystemBuffer, Length);
+#endif // __REACTOS__
+
         switch (IrpSp->Parameters.QueryVolume.FsInformationClass) {
 
         case FileFsSizeInformation:
@@ -217,7 +221,7 @@ Return Value:
     return Status;
 }
 
-
+
 //
 //  Local support routine
 //
@@ -310,7 +314,7 @@ Return Value:
     return Status;
 }
 
-
+
 //
 //  Local support routine
 //
@@ -373,7 +377,7 @@ Return Value:
     return STATUS_SUCCESS;
 }
 
-
+
 //
 //  Local support routine
 //
@@ -437,7 +441,7 @@ Return Value:
     return STATUS_SUCCESS;
 }
 
-
+
 //
 //  Local support routine
 //

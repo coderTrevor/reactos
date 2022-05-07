@@ -53,14 +53,14 @@ DwInitializeSdFromThreadToken (
     }
 
     /* Get the size of the token's user */
-    if ((GetTokenInformation(hToken, TokenUser, NULL, 0, &dwUserLength) == FALSE) ||
+    if ((GetTokenInformation(hToken, TokenUser, NULL, 0, &dwUserLength) != FALSE) ||
         (GetLastError() != ERROR_INSUFFICIENT_BUFFER))
     {
         return GetLastError();
     }
 
     /* Get the size of the token's primary group */
-    if ((GetTokenInformation(hToken, TokenPrimaryGroup, NULL, 0, &dwGroupLength) == FALSE) ||
+    if ((GetTokenInformation(hToken, TokenPrimaryGroup, NULL, 0, &dwGroupLength) != FALSE) ||
         (GetLastError() != ERROR_INSUFFICIENT_BUFFER))
     {
         return GetLastError();
@@ -69,7 +69,7 @@ DwInitializeSdFromThreadToken (
     /* Allocate an SD large enough to hold the SIDs for the above */
     dwAlignLength = ALIGN_UP(dwUserLength, ULONG);
     pSd = (PISECURITY_DESCRIPTOR)MemAlloc(0,
-                                          dwAlignLength + 
+                                          dwAlignLength +
                                           dwGroupLength +
                                           sizeof(*pSd));
     if (pSd == NULL) return ERROR_OUTOFMEMORY;

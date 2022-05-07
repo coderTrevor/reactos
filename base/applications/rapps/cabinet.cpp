@@ -1,18 +1,18 @@
 /*
-* PROJECT:     ReactOS Applications Manager
-* LICENSE:     GPL-2.0+ (https://spdx.org/licenses/GPL-2.0+)
-* FILE:        base/applications/rapps/cabinet.cpp
-* PURPOSE:     Cabinet extraction using FDI API
-* COPYRIGHT:   Copyright 2018 Alexander Shaposhnikov     (sanchaez@reactos.org)            
-*/
+ * PROJECT:     ReactOS Applications Manager
+ * LICENSE:     GPL-2.0-or-later (https://spdx.org/licenses/GPL-2.0-or-later)
+ * PURPOSE:     Cabinet extraction using FDI API
+ * COPYRIGHT:   Copyright 2018 Alexander Shaposhnikov     (sanchaez@reactos.org)
+ */
 #include "rapps.h"
+#include <debug.h>
 
 #include <fdi.h>
 #include <fcntl.h>
 
 /*
  * HACK: treat any input strings as Unicode (UTF-8)
- * cabinet.dll lacks any sort of a Unicode API, but FCI/FDI 
+ * cabinet.dll lacks any sort of a Unicode API, but FCI/FDI
  * provide an ability to use user-defined callbacks for any file or memory
  * operations. This flexibility and the magic power of C/C++ casting allows
  * us to treat input as we please.
@@ -66,7 +66,7 @@ inline BOOL MultiByteToWide(const CStringA& szSource,
                                     NULL);
     if (!sz)
         return FALSE;
-        
+
     // do the actual conversion
     sz = MultiByteToWideChar(CP_UTF8,
                                 0,
@@ -179,19 +179,43 @@ FNFDINOTIFY(fnNotify)
     {
     case fdintCOPY_FILE:
     {
-        ATL::CStringW szNewFileName, szExtractDir, szCabFileName;
-        ATL::CStringA szFilePathUTF8;
+        CStringW szExtractDir, szCabFileName;
 
         // Append the destination directory to the file name.
         MultiByteToWide((LPCSTR) pfdin->pv, szExtractDir, CP_UTF8);
         MultiByteToWide(pfdin->psz1, szCabFileName, CP_ACP);
 
-        szNewFileName = szExtractDir + L"\\" + szCabFileName;
+        if (szCabFileName.Find('\\') >= 0)
+        {
+            CStringW szNewDirName = szExtractDir;
+            int nTokenPos = 0;
+            // We do not want to interpret the filename as directory,
+            // so bail out before the last token!
+            while (szCabFileName.Find('\\', nTokenPos) >= 0)
+            {
+                CStringW token = szCabFileName.Tokenize(L"\\", nTokenPos);
+                if (token.IsEmpty())
+                    break;
 
+                szNewDirName += L"\\" + token;
+                if (!CreateDirectoryW(szNewDirName, NULL))
+                {
+                    DWORD dwErr = GetLastError();
+                    if (dwErr != ERROR_ALREADY_EXISTS)
+                    {
+                        DPRINT1("ERROR: Unable to create directory %S (err %lu)\n", szNewDirName.GetString(), dwErr);
+                    }
+                }
+            }
+        }
+
+        CStringW szNewFileName = szExtractDir + L"\\" + szCabFileName;
+
+        CStringA szFilePathUTF8;
         WideToMultiByte(szNewFileName, szFilePathUTF8, CP_UTF8);
 
-        // Copy file
-        iResult = fnFileOpen((LPSTR) szFilePathUTF8.GetString(), 
+        // Open the file
+        iResult = fnFileOpen((LPSTR) szFilePathUTF8.GetString(),
                              _O_WRONLY | _O_CREAT,
                              0);
     }
@@ -230,14 +254,14 @@ FNFDINOTIFY(fnNotify)
 
 /* cabinet.dll FDI function pointers */
 
-typedef HFDI(*fnFDICreate)(PFNALLOC, 
-                           PFNFREE, 
-                           PFNOPEN, 
-                           PFNREAD, 
+typedef HFDI(*fnFDICreate)(PFNALLOC,
+                           PFNFREE,
+                           PFNOPEN,
+                           PFNREAD,
                            PFNWRITE,
-                           PFNCLOSE, 
-                           PFNSEEK, 
-                           int, 
+                           PFNCLOSE,
+                           PFNSEEK,
+                           int,
                            PERF);
 
 typedef BOOL(*fnFDICopy)(HFDI,
@@ -250,12 +274,12 @@ typedef BOOL(*fnFDICopy)(HFDI,
 
 typedef BOOL(*fnFDIDestroy)(HFDI);
 
-/* 
- * Extraction function 
+/*
+ * Extraction function
  * TODO: require only a full path to the cab as an argument
  */
-BOOL ExtractFilesFromCab(const ATL::CStringW& szCabName, 
-                         const ATL::CStringW& szCabDir, 
+BOOL ExtractFilesFromCab(const ATL::CStringW& szCabName,
+                         const ATL::CStringW& szCabDir,
                          const ATL::CStringW& szOutputDir)
 {
     HINSTANCE hCabinetDll;
@@ -267,7 +291,7 @@ BOOL ExtractFilesFromCab(const ATL::CStringW& szCabName,
     fnFDIDestroy pfnFDIDestroy;
     BOOL bResult;
 
-    // Load cabinet.dll and extract needed functions 
+    // Load cabinet.dll and extract needed functions
     hCabinetDll = LoadLibraryW(L"cabinet.dll");
 
     if (!hCabinetDll)
@@ -304,7 +328,7 @@ BOOL ExtractFilesFromCab(const ATL::CStringW& szCabName,
 
     // Create output dir
     bResult = CreateDirectoryW(szOutputDir, NULL);
-    
+
     if (bResult || GetLastError() == ERROR_ALREADY_EXISTS)
     {
         // Convert wide strings to UTF-8

@@ -2,7 +2,7 @@
  * PROJECT:         ReactOS API tests
  * LICENSE:         GPL-2.0-or-later (https://spdx.org/licenses/GPL-2.0-or-later)
  * PURPOSE:         Tests for wctomb
- * COPYRIGHT:       Copyright 2020 Bișoc George <george.bisoc@reactos.org>
+ * COPYRIGHT:       Copyright 2020 George Bișoc <george.bisoc@reactos.org>
  */
 
 #include <apitest.h>
@@ -13,8 +13,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <locale.h>
-
-unsigned int cdecl ___lc_codepage_func(void);
 
 START_TEST(wctomb)
 {
@@ -37,16 +35,16 @@ START_TEST(wctomb)
 
     /* Do not give output to the caller */
     Length = wctomb(NULL, 0);
-    ok(Length == 0, "Expected no characters to be converted (because the output argument is refused) but got %d\n.", Length);
+    ok(Length == 0, "Expected no characters to be converted (because the output argument is refused) but got %d.\n", Length);
 
     /* Do the same but expect a valid wide character argument this time */
     Length = wctomb(NULL, wchSrc[0]);
-    ok(Length == 0, "Expected no characters to be converted (because the output argument is refused) but got %d\n.", Length);
+    ok(Length == 0, "Expected no characters to be converted (because the output argument is refused) but got %d.\n", Length);
 
     /* Don't return anything to the output even if conversion is impossible */
     Length = wctomb(NULL, wchSrc[1]);
     ok(errno == 0, "The error number (errno) should be 0 even though an invalid character in current locale is given but got %d.\n", errno);
-    ok(Length == 0, "Expected no characters to be converted (because the output argument is refused) but got %d\n.", Length);
+    ok(Length == 0, "Expected no characters to be converted (because the output argument is refused) but got %d.\n", Length);
 
     /* Attempt to convert a character not possible in current locale */
     Length = wctomb(chDest, wchSrc[1]);

@@ -212,7 +212,7 @@ MempAllocatePageTables(VOID)
     if (Buffer + (TotalSize - NumPageTables*MM_PAGE_SIZE) !=
         PhysicalPageTablesBuffer)
     {
-        TRACE("There was a problem allocating two adjacent blocks of memory!");
+        TRACE("There was a problem allocating two adjacent blocks of memory!\n");
     }
 
     if (Buffer == NULL || PhysicalPageTablesBuffer == NULL)
@@ -254,7 +254,7 @@ static
 VOID
 MempAllocatePTE(ULONG Entry, PHARDWARE_PTE *PhysicalPT, PHARDWARE_PTE *KernelPT)
 {
-    //Print(L"Creating PDE Entry %X\n", Entry);
+    //TRACE("Creating PDE Entry %X\n", Entry);
 
     // Identity mapping
     *PhysicalPT = (PHARDWARE_PTE)&PhysicalPageTablesBuffer[PhysicalPageTables*MM_PAGE_SIZE];
@@ -297,7 +297,7 @@ MempSetupPaging(IN PFN_NUMBER StartPage,
         // We cannot map this as it requires more than 1 PDE
         // and in fact it's not possible at all ;)
         //
-        //Print(L"skipping...\n");
+        //TRACE("skipping...\n");
         return TRUE;
     }
 
@@ -324,7 +324,7 @@ MempSetupPaging(IN PFN_NUMBER StartPage,
 
         if (KernelMapping)
         {
-             if (KernelPT[Page & 0x3ff].Valid) WARN("xxx already mapped \n");
+            if (KernelPT[Page & 0x3ff].Valid) WARN("KernelPT already mapped\n");
             KernelPT[Page & 0x3ff].PageFrameNumber = Page;
             KernelPT[Page & 0x3ff].Valid = (Page != 0);
             KernelPT[Page & 0x3ff].Write = (Page != 0);
@@ -676,7 +676,7 @@ WinLdrSetProcessorContext(void)
     __lidt(&IdtDesc);
 
     /* Jump to proper CS and clear prefetch queue */
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__clang__)
     asm("ljmp    $0x08, $1f\n"
         "1:\n");
 #elif defined(_MSC_VER)

@@ -168,9 +168,9 @@ UDFCommonQueryVolInfo(
 
         ASSERT(PtrIrpContext);
         ASSERT(Irp);
-    
+
         PAGED_CODE();
-    
+
         FileObject = IrpSp->FileObject;
         ASSERT(FileObject);
 
@@ -197,10 +197,13 @@ UDFCommonQueryVolInfo(
             try_return(RC);
         }
 #endif //UDF_ENABLE_SECURITY
+
+        RtlZeroMemory(Irp->AssociatedIrp.SystemBuffer, Length);
+
         switch (IrpSp->Parameters.QueryVolume.FsInformationClass) {
-    
+
         case FileFsVolumeInformation:
-    
+
             //  This is the only routine we need the Vcb shared because of
             //  copying the volume label.  All other routines copy fields that
             //  cannot change or are just manifest constants.
@@ -213,19 +216,19 @@ UDFCommonQueryVolInfo(
 
             RC = UDFQueryFsVolumeInfo( PtrIrpContext, Vcb, (PFILE_FS_VOLUME_INFORMATION)(Irp->AssociatedIrp.SystemBuffer), &Length );
             break;
-    
+
         case FileFsSizeInformation:
-    
+
             RC = UDFQueryFsSizeInfo( PtrIrpContext, Vcb, (PFILE_FS_SIZE_INFORMATION)(Irp->AssociatedIrp.SystemBuffer), &Length );
             break;
-    
+
         case FileFsDeviceInformation:
-    
+
             RC = UDFQueryFsDeviceInfo( PtrIrpContext, Vcb, (PFILE_FS_DEVICE_INFORMATION)(Irp->AssociatedIrp.SystemBuffer), &Length );
             break;
-    
+
         case FileFsAttributeInformation:
-    
+
             RC = UDFQueryFsAttributeInfo( PtrIrpContext, Vcb, (PFILE_FS_ATTRIBUTE_INFORMATION)(Irp->AssociatedIrp.SystemBuffer), &Length );
             break;
 
@@ -248,7 +251,7 @@ UDFCommonQueryVolInfo(
 try_exit:   NOTHING;
 
     } _SEH2_FINALLY {
-    
+
         if (AcquiredVCB) {
             UDFReleaseResource(&(Vcb->VCBResource));
             AcquiredVCB = FALSE;
@@ -681,9 +684,9 @@ UDFCommonSetVolInfo(
         UDFPrint(("UDFCommonSetVolInfo: \n"));
         ASSERT(PtrIrpContext);
         ASSERT(Irp);
-    
+
         PAGED_CODE();
-    
+
         FileObject = IrpSp->FileObject;
         ASSERT(FileObject);
 
@@ -727,13 +730,13 @@ UDFCommonSetVolInfo(
         }
 #endif //UDF_ENABLE_SECURITY
         switch (IrpSp->Parameters.SetVolume.FsInformationClass) {
-    
+
         case FileFsLabelInformation:
-    
+
             RC = UDFSetLabelInfo( PtrIrpContext, Vcb, (PFILE_FS_LABEL_INFORMATION)(Irp->AssociatedIrp.SystemBuffer), &Length );
             Irp->IoStatus.Information = 0;
             break;
-    
+
         default:
 
             RC = STATUS_INVALID_DEVICE_REQUEST;
@@ -748,7 +751,7 @@ UDFCommonSetVolInfo(
 try_exit:   NOTHING;
 
     } _SEH2_FINALLY {
-    
+
         if (AcquiredVCB) {
             UDFReleaseResource(&(Vcb->VCBResource));
             AcquiredVCB = FALSE;
@@ -805,7 +808,7 @@ UDFSetLabelInfo (
     if(Vcb->VolIdent.Buffer) MyFreePool__(Vcb->VolIdent.Buffer);
     Vcb->VolIdent.Buffer = (PWCHAR)MyAllocatePool__(NonPagedPool, Buffer->VolumeLabelLength+sizeof(WCHAR));
     if(!Vcb->VolIdent.Buffer) return STATUS_INSUFFICIENT_RESOURCES;
-    
+
     Vcb->VolIdent.Length = (USHORT)Buffer->VolumeLabelLength;
     Vcb->VolIdent.MaximumLength = (USHORT)Buffer->VolumeLabelLength+sizeof(WCHAR);
     RtlCopyMemory(Vcb->VolIdent.Buffer, &(Buffer->VolumeLabel), Buffer->VolumeLabelLength);

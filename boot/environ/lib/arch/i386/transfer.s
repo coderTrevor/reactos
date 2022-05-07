@@ -21,7 +21,6 @@ EXTERN _BootApp32Parameters:DWORD
 
 /* FUNCTIONS ****************************************************************/
 .code
-ASSUME nothing
 
 PUBLIC _Archx86TransferTo32BitApplicationAsm
 _Archx86TransferTo32BitApplicationAsm:
@@ -31,7 +30,7 @@ _Archx86TransferTo32BitApplicationAsm:
     push esi
     push edi
     push ebx
- 
+
     /* Save data segments */
     push es
     push ds

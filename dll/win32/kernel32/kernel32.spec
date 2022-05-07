@@ -688,7 +688,7 @@
 @ stdcall HeapAlloc(long long long) ntdll.RtlAllocateHeap
 @ stdcall HeapCompact(long long)
 @ stdcall HeapCreate(long long long)
-@ stdcall -version=0x351-0x502 HeapCreateTagsW(long long wstr wstr)
+@ stdcall -version=0x351-0x502 HeapCreateTagsW(ptr long wstr wstr)
 @ stdcall HeapDestroy(long)
 @ stdcall -version=0x351-0x502 HeapExtend(long long ptr long)
 @ stdcall HeapFree(long long long) ntdll.RtlFreeHeap
@@ -1109,9 +1109,9 @@
 @ stdcall SwitchToThread()
 @ stdcall SystemTimeToFileTime(ptr ptr)
 @ stdcall SystemTimeToTzSpecificLocalTime (ptr ptr ptr)
-@ stdcall TerminateJobObject(long long)
-@ stdcall TerminateProcess(long long)
-@ stdcall TerminateThread(long long)
+@ stdcall TerminateJobObject(ptr long)
+@ stdcall TerminateProcess(ptr long)
+@ stdcall TerminateThread(ptr long)
 @ stdcall TermsrvAppInstallMode()
 @ stdcall Thread32First(long ptr)
 @ stdcall Thread32Next(long ptr)

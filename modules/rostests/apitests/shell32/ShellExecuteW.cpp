@@ -47,7 +47,7 @@ START_TEST(ShellExecuteW)
     ret = (INT)(UINT_PTR)hInstance;
     ok(ret > 31, "TEST #1: ret:%d, LastError: %ld\n", ret, GetLastError());
     trace("TEST #1 ret: %d.\n", ret);
-    if (hInstance) 
+    if (hInstance)
     {
         Sleep(WAIT_SLEEP);
         // Terminate Window
@@ -73,7 +73,7 @@ START_TEST(ShellExecuteW)
     ret = (INT)(UINT_PTR)hInstance;
     ok(ret > 31, "TEST #3: ret:%d, LastError: %ld\n", ret, GetLastError());
     trace("TEST #3 ret: %d.\n", ret);
-    if (hInstance) 
+    if (hInstance)
     {
         Sleep(WAIT_SLEEP);
         // Terminate Window
@@ -117,6 +117,32 @@ START_TEST(ShellExecuteW)
         Sleep(WAIT_SLEEP);
         // Terminate Window
         hWnd = FindWindowW(L"CabinetWClass", L"Search Results");
+        PostMessage(hWnd, WM_SYSCOMMAND, SC_CLOSE, 0);
+    }
+
+    // TEST #7: Open My Documents ("::{450d8fba-ad25-11d0-98a8-0800361b1103}")
+    hInstance = ShellExecuteW(NULL, NULL, L"::{450d8fba-ad25-11d0-98a8-0800361b1103}", NULL, NULL, SW_SHOWNORMAL);
+    ret = (INT)(UINT_PTR)hInstance;
+    ok(ret > 31, "TEST #7: ret:%d, LastError: %ld\n", ret, GetLastError());
+    trace("TEST #7 ret: %d.\n", ret);
+    if (hInstance)
+    {
+        Sleep(WAIT_SLEEP);
+        // Terminate Window
+        hWnd = FindWindowW(L"CabinetWClass", NULL);
+        PostMessage(hWnd, WM_SYSCOMMAND, SC_CLOSE, 0);
+    }
+
+    // TEST #8: Open My Documents ("shell:::{450d8fba-ad25-11d0-98a8-0800361b1103}")
+    hInstance = ShellExecuteW(NULL, L"open", L"shell:::{450d8fba-ad25-11d0-98a8-0800361b1103}", NULL, NULL, SW_SHOWNORMAL);
+    ret = (INT)(UINT_PTR)hInstance;
+    ok(ret > 31, "TEST #8: ret:%d, LastError: %ld\n", ret, GetLastError());
+    trace("TEST #8 ret: %d.\n", ret);
+    if (hInstance)
+    {
+        Sleep(WAIT_SLEEP);
+        // Terminate Window
+        hWnd = FindWindowW(L"CabinetWClass", NULL);
         PostMessage(hWnd, WM_SYSCOMMAND, SC_CLOSE, 0);
     }
 }

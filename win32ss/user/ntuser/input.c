@@ -354,7 +354,7 @@ RawInputThreadMain(VOID)
  *
  * Inits input implementation
  */
-INIT_FUNCTION
+CODE_SEG("INIT")
 NTSTATUS
 NTAPI
 InitInputImpl(VOID)
@@ -475,6 +475,7 @@ IsRemoveAttachThread(PTHREADINFO pti)
     return Ret;
 }
 
+// Win: zzzAttachThreadInput
 NTSTATUS FASTCALL
 UserAttachThreadInput(PTHREADINFO ptiFrom, PTHREADINFO ptiTo, BOOL fAttach)
 {
@@ -763,7 +764,7 @@ NtUserSendInput(
                     uRet++;
                 break;
             case INPUT_HARDWARE:
-                FIXME("INPUT_HARDWARE not supported!");
+                FIXME("INPUT_HARDWARE not supported!\n");
                 break;
             default:
                 ERR("SendInput(): Invalid input type: 0x%x\n", SafeInput.type);

@@ -140,6 +140,20 @@ public:
         return ::_wcsicmp(psz1, psz2);
     }
 
+    static int __cdecl StringSpanIncluding(
+        _In_z_ LPCWSTR pszBlock,
+        _In_z_ LPCWSTR pszSet)
+    {
+        return (int)::wcsspn(pszBlock, pszSet);
+    }
+
+    static int __cdecl StringSpanExcluding(
+        _In_z_ LPCWSTR pszBlock,
+        _In_z_ LPCWSTR pszSet)
+    {
+        return (int)::wcscspn(pszBlock, pszSet);
+    }
+
     static int __cdecl FormatV(
         _In_opt_z_ LPWSTR pszDest,
         _In_z_ LPCWSTR pszFormat,
@@ -289,6 +303,20 @@ public:
         return ::_stricmp(psz1, psz2);
     }
 
+    static int __cdecl StringSpanIncluding(
+        _In_z_ LPCSTR pszBlock,
+        _In_z_ LPCSTR pszSet)
+    {
+        return (int)::strspn(pszBlock, pszSet);
+    }
+
+    static int __cdecl StringSpanExcluding(
+        _In_z_ LPCSTR pszBlock,
+        _In_z_ LPCSTR pszSet)
+    {
+        return (int)::strcspn(pszBlock, pszSet);
+    }
+
     static int __cdecl FormatV(
         _In_opt_z_ LPSTR pszDest,
         _In_z_ LPCSTR pszFormat,
@@ -423,13 +451,13 @@ public:
     }
 
     CStringT(_In_reads_z_(nLength) const XCHAR* pch,
-             _In_ int nLength) : 
+             _In_ int nLength) :
         CThisSimpleString(pch, nLength, StringTraits::GetDefaultManager())
     {
     }
 
     CStringT(_In_reads_z_(nLength) const YCHAR* pch,
-             _In_ int nLength) : 
+             _In_ int nLength) :
         CThisSimpleString(pch, nLength, StringTraits::GetDefaultManager())
     {
     }
@@ -503,6 +531,43 @@ public:
     friend bool operator==(XCHAR ch1, const CStringT& str2) throw()
     {
         return str2.GetLength() == 1 && str2[0] == ch1;
+    }
+
+    friend bool operator!=(const CStringT& str1, const CStringT& str2) throw()
+    {
+        return str1.Compare(str2) != 0;
+    }
+
+    friend bool operator!=(const CStringT& str1, PCXSTR psz2) throw()
+    {
+        return str1.Compare(psz2) != 0;
+    }
+
+    friend bool operator!=(const CStringT& str1, PCYSTR psz2) throw()
+    {
+        CStringT tmp(psz2, str1.GetManager());
+        return tmp.Compare(str1) != 0;
+    }
+
+    friend bool operator!=(const CStringT& str1, XCHAR ch2) throw()
+    {
+        return str1.GetLength() != 1 || str1[0] != ch2;
+    }
+
+    friend bool operator!=(PCXSTR psz1, const CStringT& str2) throw()
+    {
+        return str2.Compare(psz1) != 0;
+    }
+
+    friend bool operator!=(PCYSTR psz1, const CStringT& str2) throw()
+    {
+        CStringT tmp(psz1, str2.GetManager());
+        return tmp.Compare(str2) != 0;
+    }
+
+    friend bool operator!=(XCHAR ch1, const CStringT& str2) throw()
+    {
+        return str2.GetLength() != 1 || str2[0] != ch1;
     }
 
     CStringT& operator+=(_In_ const CThisSimpleString& str)
@@ -803,6 +868,42 @@ public:
         return nCount;
     }
 
+
+    CStringT Tokenize(_In_z_ PCXSTR pszTokens, _Inout_ int& iStart) const
+    {
+        ATLASSERT(iStart >= 0);
+
+        if (iStart < 0)
+            AtlThrow(E_INVALIDARG);
+
+        if (!pszTokens || !pszTokens[0])
+        {
+            if (iStart < CThisSimpleString::GetLength())
+            {
+                return Mid(iStart);
+            }
+            iStart = -1;
+            return CStringT();
+        }
+
+        if (iStart < CThisSimpleString::GetLength())
+        {
+            int iRangeOffset = StringTraits::StringSpanIncluding(CThisSimpleString::GetString() + iStart, pszTokens);
+
+            if (iRangeOffset + iStart < CThisSimpleString::GetLength())
+            {
+                int iNewStart = iStart + iRangeOffset;
+                int nCount = StringTraits::StringSpanExcluding(CThisSimpleString::GetString() + iNewStart, pszTokens);
+
+                iStart = iNewStart + nCount + 1;
+
+                return Mid(iNewStart, nCount);
+            }
+        }
+
+        iStart = -1;
+        return CStringT();
+    }
 
     static PCXSTR DefaultTrimChars()
     {

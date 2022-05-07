@@ -114,9 +114,8 @@ FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT "", IDC_BROWSE_FOR_FOLDER_TITLE, 10, 8, 198, 24
     LTEXT "", IDC_BROWSE_FOR_FOLDER_STATUS, 10, 25, 198, 12
-    LTEXT "Папка:", IDC_BROWSE_FOR_FOLDER_FOLDER, 10, 152, 40, 12
-    CONTROL "", IDC_BROWSE_FOR_FOLDER_TREEVIEW, "SysTreeView32", TVS_HASBUTTONS | TVS_HASLINES | TVS_LINESATROOT | WS_BORDER | WS_TABSTOP, 12, 38, 194, 105
-    EDITTEXT IDC_BROWSE_FOR_FOLDER_FOLDER_TEXT, 46, 150, 160, 14, WS_BORDER | WS_GROUP | WS_TABSTOP
+    EDITTEXT IDC_BROWSE_FOR_FOLDER_FOLDER_TEXT, 12, 38, 194, 14, ES_AUTOHSCROLL | WS_GROUP
+    CONTROL "", IDC_BROWSE_FOR_FOLDER_TREEVIEW, "SysTreeView32", TVS_SHOWSELALWAYS | TVS_EDITLABELS | TVS_LINESATROOT | TVS_HASLINES | TVS_HASBUTTONS | WS_BORDER | WS_TABSTOP, 12, 58, 194, 105
     PUSHBUTTON "&Создать папку", IDC_BROWSE_FOR_FOLDER_NEW_FOLDER, 12, 174, 77, 14, WS_GROUP | WS_TABSTOP
     DEFPUSHBUTTON "OK", IDOK, 102, 174, 50, 14, BS_DEFPUSHBUTTON | WS_GROUP | WS_TABSTOP
     PUSHBUTTON "Отмена", IDCANCEL, 156, 174, 50, 14, WS_GROUP | WS_TABSTOP
@@ -141,15 +140,15 @@ CAPTION "%s: сведения"
 FONT 8, "MS Shell Dlg"
 BEGIN
     ICON "", IDC_ABOUT_ICON, 7, 55, 21, 20
-    LTEXT "", IDC_ABOUT_APPNAME, 35, 55, 200, 10
-    LTEXT "", IDC_ABOUT_VERSION, 35, 65, 250, 10
+    LTEXT "", IDC_ABOUT_APPNAME, 35, 55, 200, 10, SS_NOPREFIX
+    LTEXT "", IDC_ABOUT_VERSION, 35, 65, 250, 10, SS_NOPREFIX
     LTEXT "Copyright 1998-", IDC_STATIC, 35, 75, 53, 10
     LTEXT COPYRIGHT_YEAR, IDC_STATIC, 88, 75, 17, 10
     LTEXT " Команда ReactOS\0", IDC_STATIC, 105, 75, 65, 10
-    LTEXT "", IDC_ABOUT_OTHERSTUFF, 35, 90, 180, 20
-    LTEXT "Данная версия ReactOS зарегистрирована на:", IDC_STATIC, 35, 115, 180, 10
-    LTEXT "", IDC_ABOUT_REG_USERNAME, 45, 125, 180, 10
-    LTEXT "", IDC_ABOUT_REG_ORGNAME, 45, 135, 180, 10
+    LTEXT "", IDC_ABOUT_OTHERSTUFF, 35, 90, 180, 20, SS_NOPREFIX
+    LTEXT "Данная версия ReactOS зарегистрирована на:", IDC_ABOUT_REG_TO, 35, 115, 180, 10
+    LTEXT "", IDC_ABOUT_REG_USERNAME, 45, 125, 180, 10, SS_NOPREFIX
+    LTEXT "", IDC_ABOUT_REG_ORGNAME, 45, 135, 180, 10, SS_NOPREFIX
     LTEXT "", IDC_STATIC, 35, 147, 235, 1, SS_ETCHEDHORZ
     LTEXT "Доступная физическая память:", IDC_STATIC, 35, 152, 130, 10
     LTEXT "", IDC_ABOUT_PHYSMEM, 167, 152, 88, 10
@@ -500,6 +499,20 @@ BEGIN
     PUSHBUTTON "Отмена", IDCANCEL, 95, 39, 50, 14
 END
 
+IDD_LOG_OFF_FANCY DIALOGEX 0, 0, 208, 122
+STYLE NOT WS_VISIBLE | DS_CENTER | DS_SHELLFONT | WS_BORDER | WS_POPUP
+FONT 8, "MS Shell Dlg"
+BEGIN
+    CONTROL IDB_DLG_BG, IDC_STATIC, "STATIC", SS_BITMAP | SS_REALSIZECONTROL, 0, 0, 208, 122
+    CONTROL IDB_REACTOS_FLAG, IDC_STATIC, "STATIC", SS_BITMAP, 176, 1, 32, 26
+    PUSHBUTTON "&Switch User", IDC_SWITCH_USER_BUTTON, 55, 46, 22, 20, BS_OWNERDRAW | WS_DISABLED | WS_GROUP
+    PUSHBUTTON "В&ыход", IDC_LOG_OFF_BUTTON, 132, 46, 22, 20, BS_OWNERDRAW
+    PUSHBUTTON "Отмена", IDCANCEL, 162, 103, 40, 12, WS_GROUP | BS_FLAT
+    LTEXT "Выход из ReactOS", IDC_LOG_OFF_TEXT_STATIC, 4, 7, 130, 19
+    CTEXT "Switch User", IDC_SWITCH_USER_STATIC, 41, 70, 51, 11
+    CTEXT "Выход", IDC_LOG_OFF_STATIC, 118, 70, 51, 11
+END
+
 IDD_DISCONNECT DIALOGEX 0, 0, 188, 60
 STYLE DS_SHELLFONT | DS_MODALFRAME | DS_CENTER | WS_POPUPWINDOW | WS_CAPTION
 CAPTION "Отключить ReactOS"
@@ -716,6 +729,20 @@ BEGIN
     PUSHBUTTON "Сменить &значок...", IDC_FOLDERCUST_CHANGE_ICON, 15, 210, 75, 15
 END
 
+IDD_LINK_PROBLEM DIALOGEX 0, 0, 250, 140
+CAPTION "Проблема с ярлыком"
+STYLE DS_SHELLFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+FONT 8, "MS Shell Dlg"
+BEGIN
+    ICON 0, IDC_LINK_PROBLEM_ICON, 5, 5, 0, 0
+    LTEXT "Элемент '%s', на который ссылается этот ярлык, был изменён или перемещён, поэтому ярлык не будет работать правильно.", IDC_LINK_PROBLEM_LABEL1, 35, 5, 210, 35
+    LTEXT "Ближайшее совпадение по имени, типу, размеру, и дате:", IDC_LINK_PROBLEM_LABEL2, 35, 45, 210, 35
+    LTEXT "Вы хотите исправить назначение этого ярлыка или просто удалить его?", -1, 35, 85, 210, 30
+    DEFPUSHBUTTON "&Исправить", IDOK, 55, 120, 60, 15, WS_DISABLED
+    PUSHBUTTON "&Удалить", IDYES, 120, 120, 60, 15
+    PUSHBUTTON "Отмена", IDCANCEL, 185, 120, 60, 15
+END
+
 STRINGTABLE
 BEGIN
     /* columns in the shellview */
@@ -778,13 +805,15 @@ BEGIN
     IDS_OPENFILELOCATION "Открыть &расположение объекта"
     IDS_SENDTO_MENU "Отправит&ь"
 
-    IDS_MOVEERRORTITLE "Error Moving File or Folder"
-    IDS_COPYERRORTITLE "Error Copying File or Folder"
-    IDS_MOVEERRORSAMEFOLDER "Cannot move '%s': The destination folder is the same as the source folder."
-    IDS_MOVEERRORSAME "Cannot move '%s': The source and destination file names are the same."
-    IDS_COPYERRORSAME "Cannot copy '%s': The source and destination file names are the same."
-    IDS_MOVEERRORSUBFOLDER "Cannot move '%s': The destination folder is a subfolder of the source folder."
-    IDS_COPYERRORSUBFOLDER "Cannot copy '%s': The destination folder is a subfolder of the source folder."
+    IDS_MOVEERRORTITLE "Ошибка при перемещении папки или файла"
+    IDS_COPYERRORTITLE "Ошибка при копировании папки или файла"
+    IDS_MOVEERRORSAMEFOLDER "Не удаётся переместить '%s': Папка назначения совпадает с исходной папкой."
+    IDS_MOVEERRORSAME "Не удаётся переместить '%s': Имена исходного и целевого файлов совпадают."
+    IDS_COPYERRORSAME "Не удаётся скопировать '%s': Имена исходного и целевого файлов совпадают."
+    IDS_MOVEERRORSUBFOLDER "Не удаётся переместить '%s': Папка назначения является подпапкой исходной папки."
+    IDS_COPYERRORSUBFOLDER "Не удаётся скопировать '%s': Папка назначения является подпапкой исходной папки."
+    IDS_MOVEERROR "Не удаётся переместить '%s': %s"
+    IDS_COPYERROR "Не удаётся скопировать '%s': %s"
 
     IDS_CREATEFOLDER_DENIED "Невозможно создать папку '%1'"
     IDS_CREATEFOLDER_CAPTION "Невозможно создать папку"
@@ -813,11 +842,15 @@ BEGIN
     IDS_RESTART_PROMPT "Вы действительно хотите перезагрузить ReactOS?"
     IDS_SHUTDOWN_TITLE "Завершение работы"
     IDS_SHUTDOWN_PROMPT "Вы действительно хотите завершить работу ReactOS?"
-    
+
     /* Format Dialog Strings */
-    IDS_FORMAT_TITLE "Format Local Disk"
-    IDS_FORMAT_WARNING "WARNING: Formatting will erase ALL data on this disk.\nTo format the disk, click OK. To quit, click CANCEL."
-    IDS_FORMAT_COMPLETE "Format Complete."
+    IDS_FORMAT_TITLE "Форматирование локального диска"
+    IDS_FORMAT_WARNING "ВНИМАНИЕ: Форматирование уничтожит ВСЕ данные на этом диске.\nНажмите кнопку ""OK"" для запуска форматирования, ""Отмена"" для его отмены."
+    IDS_FORMAT_COMPLETE "Форматирование завершено."
+
+    /* Warning format system drive dialog strings */
+    IDS_NO_FORMAT_TITLE "Невозможно отформатировать этот том"
+    IDS_NO_FORMAT "Этот том не может быть отформатирован! На нём находятся важные системные файлы, необходимые для работы ReactOS."
 
     /* Run File dialog */
     IDS_RUNDLG_ERROR "Невозможно отобразить диалоговое окно Выполнить (внутренняя ошибка)"
@@ -897,14 +930,14 @@ BEGIN
     IDS_COM_FILE "Приложение DOS"
     IDS_CPL_FILE "Элемент панели управления"
     IDS_CUR_FILE "Курсор"
-    IDS_DB__FILE "Database File"
+    IDS_DB__FILE "Файл базы данных"
     IDS_DLL_FILE "Расширение приложения"
     IDS_DRV_FILE "Драйвер устройства"
-    IDS_EFI_FILE "Extensible Firmware Interface Executable"
+    IDS_EFI_FILE "Исполняемый файл Extensible Firmware Interface"
     IDS_EXE_FILE "Приложение"
-    IDS_NLS_FILE "National Language Support File"
-    IDS_OCX_FILE "ActiveX Control"
-    IDS_TLB_FILE "Type Library"
+    IDS_NLS_FILE "Файл поддержки национальных языков"
+    IDS_OCX_FILE "Элемент управления ActiveX"
+    IDS_TLB_FILE "Библиотека типов"
     IDS_FON_FILE "Файл шрифта"
     IDS_TTF_FILE "Файл шрифта TrueType"
     IDS_OTF_FILE "Файл шрифта OpenType"
@@ -912,7 +945,7 @@ BEGIN
     IDS_ICO_FILE "Значок"
     IDS_INI_FILE "Файл конфигурации"
     IDS_LNK_FILE "Ярлык"
-    IDS_NT__FILE "NT DOS32 Configuration File"
+    IDS_NT__FILE "Файл конфигурации NT DOS32"
     IDS_PIF_FILE "Информация о приложении NT VDM"
     IDS_SCR_FILE "Заставка"
     IDS_SYS_FILE "Системный файл"
@@ -985,9 +1018,26 @@ BEGIN
     IDS_SPECIFY_ACTION "Необходимо задать действие."
     IDS_INVALID_PROGRAM "Указанная программа не найдена. Убедитесь, что имя и путь к файлу указаны правильно."
     IDS_REMOVE_ACTION "Вы действительно хотите удалить это действие?"
-    IDS_ACTION_EXISTS "Действие '%s' уже зарегистрирован для этого типа файла. Введите другое имя и повторите попытку."
-    IDS_EXE_FILTER "Programs\0*.exe\0All Files\0*.*\0"
+    IDS_ACTION_EXISTS "Действие '%s' уже зарегистрировано для этого типа файла. Введите другое имя и повторите попытку."
+    IDS_EXE_FILTER "Программы\0*.exe\0Все файлы\0*.*\0"
     IDS_EDITING_ACTION "Изменение действия для типа: "
     IDS_NO_ICONS "Файл '%s' не содержит значков.\n\nВыберите значок из списка или укажите другой файл."
     IDS_FILE_NOT_FOUND "Файл '%s' не найден."
+    IDS_LINK_INVALID "Элемент '%s', на который ссылается этот ярлык, был изменён или перемещён, поэтому ярлык не будет работать правильно."
+    IDS_COPYTOMENU "Ко&пировать в папку..."
+    IDS_COPYTOTITLE "Выберите расположение, куда вы хотите скопировать '%s', затем нажмите кнопку 'Копировать'."
+    IDS_COPYITEMS "Копирование элементов"
+    IDS_COPYBUTTON "Копировать"
+    IDS_MOVETOMENU "П&ереместить в папку..."
+    IDS_MOVETOTITLE "Выберите расположение, куда вы хотите переместить '%s', затем нажмите кнопку 'Переместить'."
+    IDS_MOVEITEMS "Перемещение элементов"
+    IDS_MOVEBUTTON "Переместить"
+
+    IDS_SYSTEMFOLDER "Системная папка"
+
+    /* For IDD_LOG_OFF_FANCY */
+    IDS_LOG_OFF_DESC "Закрывает программы и завершает ваш сеанс ReactOS."
+    IDS_SWITCH_USER_DESC "Позволяет другому пользователю войти в систему, оставляя открытыми ваши приложения и файлы.\r\n\r\n(Можно также выполнить переключение пользователей, нажав сочетание клавиш Windows + L.)"
+    IDS_LOG_OFF_TITLE "Выход"
+    IDS_SWITCH_USER_TITLE "Сменить пользователя"
 END

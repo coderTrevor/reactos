@@ -5,6 +5,7 @@
  * PURPOSE:         Secure Attention Sequence
  * PROGRAMMERS:     Thomas Weidenmueller (w3seek@users.sourceforge.net)
  *                  Hervé Poussineau (hpoussin@reactos.org)
+ *                  Arnav Bhatt (arnavbhatt288@gmail.com)
  * UPDATE HISTORY:
  *                  Created 28/03/2004
  */
@@ -260,7 +261,7 @@ PlaySoundRoutine(
             {
                 if (!bLogon)
                 {
-                    Beep(500, 500);
+                    Beep(440, 125);
                 }
                 FreeLibrary(hLibrary);
                 return FALSE;
@@ -427,87 +428,6 @@ PlayLogonSound(
         CloseHandle(hThread);
 }
 
-static BOOL
-AllowWinstaAccess(PWLSESSION Session)
-{
-    BOOL bSuccess = FALSE;
-    DWORD dwIndex;
-    DWORD dwLength = 0;
-    PTOKEN_GROUPS ptg = NULL;
-    PSID psid;
-    TOKEN_STATISTICS Stats;
-    DWORD cbStats;
-    DWORD ret;
-
-    // Get required buffer size and allocate the TOKEN_GROUPS buffer.
-
-    if (!GetTokenInformation(Session->UserToken,
-                             TokenGroups,
-                             ptg,
-                             0,
-                             &dwLength))
-    {
-        if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
-            return FALSE;
-
-        ptg = (PTOKEN_GROUPS)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwLength);
-        if (ptg == NULL)
-            return FALSE;
-    }
-
-    // Get the token group information from the access token.
-    if (!GetTokenInformation(Session->UserToken,
-                             TokenGroups,
-                             ptg,
-                             dwLength,
-                             &dwLength))
-    {
-        goto Cleanup;
-    }
-
-    // Loop through the groups to find the logon SID.
-
-    for (dwIndex = 0; dwIndex < ptg->GroupCount; dwIndex++)
-    {
-        if ((ptg->Groups[dwIndex].Attributes & SE_GROUP_LOGON_ID)
-            == SE_GROUP_LOGON_ID)
-        {
-            psid = ptg->Groups[dwIndex].Sid;
-            break;
-        }
-    }
-
-    dwLength = GetLengthSid(psid);
-
-    if (!GetTokenInformation(Session->UserToken,
-                             TokenStatistics,
-                             &Stats,
-                             sizeof(TOKEN_STATISTICS),
-                             &cbStats))
-    {
-        WARN("Couldn't get Authentication id from user token!\n");
-        goto Cleanup;
-    }
-
-    AddAceToWindowStation(Session->InteractiveWindowStation, psid);
-
-    ret = SetWindowStationUser(Session->InteractiveWindowStation,
-                               &Stats.AuthenticationId,
-                               psid,
-                               dwLength);
-    TRACE("SetWindowStationUser returned 0x%x\n", ret);
-
-    bSuccess = TRUE;
-
-Cleanup:
-
-    // Free the buffer for the token groups.
-    if (ptg != NULL)
-        HeapFree(GetProcessHeap(), 0, (LPVOID)ptg);
-
-    return bSuccess;
-}
-
 static
 VOID
 RestoreAllConnections(PWLSESSION Session)
@@ -632,7 +552,12 @@ HandleLogon(
         goto cleanup;
     }
 
-    AllowWinstaAccess(Session);
+    /* Allow winsta and desktop access for this session */
+    if (!AllowAccessOnSession(Session))
+    {
+        WARN("WL: AllowAccessOnSession() failed to give winsta & desktop access for this session\n");
+        goto cleanup;
+    }
 
     /* Connect remote resources */
     RestoreAllConnections(Session);
@@ -725,7 +650,7 @@ LogoffShutdownThread(
     }
 
     /* Cancel all the user connections */
-    WNetClearConnections(0);
+    WNetClearConnections(NULL);
 
     if (LSData->Session->UserToken)
         RevertToSelf();
@@ -1046,7 +971,12 @@ HandleShutdown(
     BOOLEAN Old;
 
     // SwitchDesktop(Session->WinlogonDesktop);
-    DisplayStatusMessage(Session, Session->WinlogonDesktop, IDS_REACTOSISSHUTTINGDOWN);
+
+    /* If the system is rebooting, show the appropriate string */
+    if (wlxAction == WLX_SAS_ACTION_SHUTDOWN_REBOOT)
+        DisplayStatusMessage(Session, Session->WinlogonDesktop, IDS_REACTOSISRESTARTING);
+    else
+        DisplayStatusMessage(Session, Session->WinlogonDesktop, IDS_REACTOSISSHUTTINGDOWN);
 
     /* Prepare data for shutdown thread */
     LSData = HeapAlloc(GetProcessHeap(), 0, sizeof(LOGOFF_SHUTDOWN_DATA));

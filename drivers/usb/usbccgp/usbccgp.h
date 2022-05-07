@@ -99,12 +99,6 @@ AllocateInterfaceDescriptorsArray(
 /* misc.c */
 
 NTSTATUS
-NTAPI
-USBCCGP_SyncForwardIrp(
-    PDEVICE_OBJECT DeviceObject,
-    PIRP Irp);
-
-NTSTATUS
 USBCCGP_SyncUrbRequest(
     IN PDEVICE_OBJECT DeviceObject,
     OUT PURB UrbRequest);
@@ -127,14 +121,14 @@ DumpFunctionDescriptor(
 
 NTSTATUS
 FDO_Dispatch(
-    PDEVICE_OBJECT DeviceObject, 
+    PDEVICE_OBJECT DeviceObject,
     PIRP Irp);
 
 /* pdo.c */
 
 NTSTATUS
 PDO_Dispatch(
-    PDEVICE_OBJECT DeviceObject, 
+    PDEVICE_OBJECT DeviceObject,
     PIRP Irp);
 
 /* function.c */

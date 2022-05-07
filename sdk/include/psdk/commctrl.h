@@ -147,7 +147,11 @@ extern "C" {
 #define NM_THEMECHANGED (NM_FIRST-22)
 
 #ifndef CCSIZEOF_STRUCT
+#if defined(__clang__) /* Clang-CL fails without this workaround. See CORE-17547 */
+#define CCSIZEOF_STRUCT(structname,member) (__builtin_offsetof(structname,member) + sizeof(((structname*)0)->member))
+#else
 #define CCSIZEOF_STRUCT(structname,member) (((int)((LPBYTE)(&((structname*)0)->member) - ((LPBYTE)((structname*)0))))+sizeof(((structname*)0)->member))
+#endif
 #endif
 
   typedef struct tagNMTOOLTIPSCREATED {
@@ -218,8 +222,8 @@ extern "C" {
 #define TBN_FIRST (0U-700U)
 #define TBN_LAST (0U-720U)
 
-#define UDN_FIRST (0U-721)
-#define UDN_LAST (0U-740)
+#define UDN_FIRST (0U-721U)
+#define UDN_LAST (0U-740U)
 
 #define MCN_FIRST (0U-750U)
 #define MCN_LAST (0U-759U)

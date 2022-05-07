@@ -105,6 +105,22 @@ BOOL WINAPI StrRetToStrNW(LPWSTR,DWORD,LPSTRRET,const ITEMIDLIST*);
 #define SHCNRF_RecursiveInterrupt   0x1000  /* Must be combined with SHCNRF_InterruptLevel */
 #define SHCNRF_NewDelivery          0x8000  /* Messages use shared memory */
 
+/****************************************************************************
+ * SHChangeNotify
+ */
+
+typedef struct _SHCNF_PRINTJOB_INFO
+{
+    DWORD JobId;
+    // More info,,,
+} SHCNF_PRINTJOB_INFO, *PSHCNF_PRINTJOB_INFO;
+
+//
+// Add missing types for print job notifications.
+//
+#define SHCNF_PRINTJOBA 0x0004
+#define SHCNF_PRINTJOBW 0x0007
+
 
 /****************************************************************************
  * Shell Common Dialogs
@@ -424,8 +440,9 @@ BOOL WINAPI PathYetAnotherMakeUniqueName(
     LPCWSTR lpszShortName,
     LPCWSTR lpszLongName);
 
-BOOL  WINAPI PathQualifyAW(LPCVOID path);
-
+VOID WINAPI PathQualifyA(LPSTR pszPath);
+VOID WINAPI PathQualifyW(LPWSTR pszPath);
+VOID WINAPI PathQualifyAW(LPVOID path);
 
 /* PathResolve flags */
 #define PRF_CHECKEXISTANCE  0x01
@@ -433,6 +450,8 @@ BOOL  WINAPI PathQualifyAW(LPCVOID path);
 #define PRF_QUALIFYONPATH   0x04
 #define PRF_WINDOWS31       0x08
 
+BOOL WINAPI PathResolveA(LPSTR path, LPCSTR *dirs, DWORD flags);
+BOOL WINAPI PathResolveW(LPWSTR path, LPCWSTR *dirs, DWORD flags);
 BOOL WINAPI PathResolveAW(LPVOID lpszPath, LPCVOID *alpszPaths, DWORD dwFlags);
 
 VOID WINAPI PathSetDlgItemPathAW(HWND hDlg, int nIDDlgItem, LPCVOID lpszPath);

@@ -24,7 +24,7 @@ LIST_ENTRY usmList;
 
 /* FUNCTIONS *****************************************************************/
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 NTSTATUS
 NTAPI
 MsqInitializeImpl(VOID)
@@ -766,7 +766,7 @@ AllocateUserMessage(BOOL KEvent)
 
    if(!(Message = ExAllocateFromPagedLookasideList(pgSendMsgLookasideList)))
    {
-       ERR("AllocateUserMessage(): Not enough memory to allocate a message");
+       ERR("AllocateUserMessage(): Not enough memory to allocate a message\n");
        return NULL;
    }
    RtlZeroMemory(Message, sizeof(USER_SENT_MESSAGE));
@@ -1021,13 +1021,12 @@ co_MsqSendMessageAsync(PTHREADINFO ptiReceiver,
                        BOOL HasPackedLParam,
                        INT HookMessage)
 {
-
     PTHREADINFO ptiSender;
     PUSER_SENT_MESSAGE Message;
 
     if(!(Message = AllocateUserMessage(FALSE)))
     {
-        ERR("MsqSendMessageAsync(): Not enough memory to allocate a message");
+        ERR("MsqSendMessageAsync(): Not enough memory to allocate a message\n");
         return FALSE;
     }
 
@@ -1524,7 +1523,7 @@ BOOL co_IntProcessMouseMessage(MSG* msg, BOOL* RemoveMessages, BOOL* NotForUs, L
     {
         // This is not for us and we should leave so the other thread can check for messages!!!
         *NotForUs = TRUE;
-        *RemoveMessages = TRUE;
+        *RemoveMessages = FALSE;
         return FALSE;
     }
 

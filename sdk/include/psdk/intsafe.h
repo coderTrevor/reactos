@@ -30,14 +30,6 @@
 
 #include <specstrings.h>
 
-#if defined(__GNUC__) && !defined(__forceinline)
-# if ( __MINGW_GNUC_PREREQ(4, 3)  &&  __STDC_VERSION__ >= 199901L)
-#  define __forceinline extern inline __attribute__((__always_inline__,__gnu_inline__))
-# else
-#  define __forceinline extern __inline__ __attribute__((__always_inline__))
-# endif
-#endif
-
 /* Handle ntintsafe here too */
 #ifdef _NTINTSAFE_H_INCLUDED_
 #ifndef _NTDEF_ /* Guard agains redefinition from ntstatus.h */
@@ -54,9 +46,11 @@ typedef _Return_type_success_(return >= 0) long NTSTATUS;
 #ifndef _HRESULT_DEFINED
 typedef _Return_type_success_(return >= 0) long HRESULT;
 #endif
+#ifndef SUCCEEDED
 #define SUCCEEDED(hr) (((HRESULT)(hr)) >= 0)
 #define FAILED(hr) (((HRESULT)(hr)) < 0)
 #define S_OK    ((HRESULT)0L)
+#endif
 #define INTSAFE_RESULT HRESULT
 #define INTSAFE_SUCCESS S_OK
 #define INTSAFE_E_ARITHMETIC_OVERFLOW ((HRESULT)0x80070216L)
@@ -267,7 +261,7 @@ INTSAFE_NAME(_Name)( \
     _In_ _TypeFrom Input, \
     _Out_ _Deref_out_range_(==, Input) _TypeTo *pOutput) \
 { \
-    if (Input <= _TypeTo ## _MAX) \
+    if ((sizeof(_TypeFrom) < sizeof(_TypeTo)) || (Input <= _TypeTo ## _MAX)) \
     { \
         *pOutput = (_TypeTo)Input; \
         return INTSAFE_SUCCESS; \
@@ -390,6 +384,8 @@ DEFINE_SAFE_CONVERT_STOU(LongPtrToULong, LONG_PTR, ULONG)
 DEFINE_SAFE_CONVERT_STOU(LongPtrToUIntPtr, LONG_PTR, UINT_PTR)
 DEFINE_SAFE_CONVERT_STOU(LongPtrToULongPtr, LONG_PTR, ULONG_PTR)
 DEFINE_SAFE_CONVERT_STOU(LongPtrToULongLong, LONG_PTR, ULONGLONG)
+DEFINE_SAFE_CONVERT_STOU(LongLongToULong, LONGLONG, ULONG)
+DEFINE_SAFE_CONVERT_STOU(LongLongToULongPtr, LONGLONG, ULONG_PTR)
 #ifdef _CHAR_UNSIGNED
 DEFINE_SAFE_CONVERT_STOU(ShortToChar, SHORT, UINT8)
 DEFINE_SAFE_CONVERT_STOU(LongPtrToChar, LONG_PTR, UINT8)
@@ -468,6 +464,9 @@ DEFINE_SAFE_CONVERT_STOS(LongPtrToChar, LONG_PTR, _INTSAFE_CHAR)
 #define RtlSIZETToULong RtlULongPtrToULong
 #define RtlSSIZETToULongLong RtlLongPtrToULongLong
 #define RtlSSIZETToULong RtlLongPtrToULong
+#define RtlLongLongToSizeT RtlLongLongToUIntPtr
+#define RtlLongLongToSSIZET RtlLongLongToLongPtr
+#define RtlLongLongToSIZET RtlLongLongToULongPtr
 #ifdef _WIN64
 #define RtlIntToUIntPtr RtlIntToULongLong
 #define RtlULongLongToIntPtr RtlULongLongToLongLong
@@ -505,6 +504,9 @@ DEFINE_SAFE_CONVERT_STOS(LongPtrToChar, LONG_PTR, _INTSAFE_CHAR)
 #define SIZETToULong ULongPtrToULong
 #define SSIZETToULongLong LongPtrToULongLong
 #define SSIZETToULong LongPtrToULong
+#define LongLongToSizeT LongLongToUIntPtr
+#define LongLongToSSIZET LongLongToLongPtr
+#define LongLongToSIZET LongLongToULongPtr
 #ifdef _WIN64
 #define IntToUIntPtr IntToULongLong
 #define ULongLongToIntPtr ULongLongToLongLong

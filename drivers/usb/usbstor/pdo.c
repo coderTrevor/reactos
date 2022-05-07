@@ -589,29 +589,27 @@ USBSTOR_PdoHandlePnp(
        case IRP_MN_QUERY_CAPABILITIES:
        {
            // just forward irp to lower device
-           Status = USBSTOR_SyncForwardIrp(DeviceExtension->LowerDeviceObject, Irp);
-           ASSERT(Status == STATUS_SUCCESS);
+            Status = STATUS_UNSUCCESSFUL;
 
-           if (NT_SUCCESS(Status))
-           {
-               // check if no unique id
-               Caps = (PDEVICE_CAPABILITIES)IoStack->Parameters.DeviceCapabilities.Capabilities;
-               Caps->UniqueID = FALSE; // no unique id is supported
-               Caps->Removable = TRUE; //FIXME
-           }
+            if (IoForwardIrpSynchronously(DeviceExtension->LowerDeviceObject, Irp))
+            {
+                Status = Irp->IoStatus.Status;
+                ASSERT(Status == STATUS_SUCCESS);
+                
+                if (NT_SUCCESS(Status))
+                {
+                    // check if no unique id
+                    Caps = (PDEVICE_CAPABILITIES)IoStack->Parameters.DeviceCapabilities.Capabilities;
+                    Caps->UniqueID = FALSE; // no unique id is supported
+                    Caps->Removable = TRUE; //FIXME
+                }
+            }
            break;
        }
        case IRP_MN_QUERY_REMOVE_DEVICE:
        case IRP_MN_QUERY_STOP_DEVICE:
        {
-#if 0
-           //
-           // if we're not claimed it's ok
-           //
            if (DeviceExtension->Claimed)
-#else
-           if (TRUE)
-#endif
            {
                Status = STATUS_UNSUCCESSFUL;
                DPRINT1("[USBSTOR] Request %x fails because device is still claimed\n", IoStack->MinorFunction);

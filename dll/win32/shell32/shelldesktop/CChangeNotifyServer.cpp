@@ -11,24 +11,17 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(shcn);
 
-// TODO: SHCNRF_RecursiveInterrupt
-
 //////////////////////////////////////////////////////////////////////////////
 
 // notification target item
-struct ITEM
+struct CWatchItem
 {
     UINT nRegID;        // The registration ID.
     DWORD dwUserPID;    // The user PID; that is the process ID of the target window.
-    HANDLE hRegEntry;   // The registration entry.
+    LPREGENTRY pRegEntry;   // The registration entry.
     HWND hwndBroker;    // Client broker window (if any).
     CDirectoryWatcher *pDirWatch; // for filesystem notification
 };
-
-typedef CWinTraits <
-    WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
-    WS_EX_TOOLWINDOW
-> CChangeNotifyServerTraits;
 
 //////////////////////////////////////////////////////////////////////////////
 // CChangeNotifyServer
@@ -39,7 +32,7 @@ typedef CWinTraits <
 // to this window where all processing takes place.
 
 class CChangeNotifyServer :
-    public CWindowImpl<CChangeNotifyServer, CWindow, CChangeNotifyServerTraits>,
+    public CWindowImpl<CChangeNotifyServer, CWindow, CWorkerTraits>,
     public CComObjectRootEx<CComMultiThreadModelNoCS>,
     public IOleWindow
 {
@@ -80,13 +73,13 @@ public:
 
 private:
     UINT m_nNextRegID;
-    CSimpleArray<ITEM> m_items;
+    CSimpleArray<CWatchItem*> m_items;
 
-    BOOL AddItem(UINT nRegID, DWORD dwUserPID, HANDLE hRegEntry, HWND hwndBroker,
-                 CDirectoryWatcher *pDirWatch);
-    BOOL RemoveItemsByRegID(UINT nRegID, DWORD dwOwnerPID);
-    void RemoveItemsByProcess(DWORD dwOwnerPID, DWORD dwUserPID);
-    void DestroyItem(ITEM& item, DWORD dwOwnerPID, HWND *phwndBroker);
+    BOOL AddItem(CWatchItem *pItem);
+    BOOL RemoveItemsByRegID(UINT nRegID);
+    BOOL RemoveItemsByProcess(DWORD dwUserPID);
+    void DestroyItem(CWatchItem *pItem, HWND *phwndBroker);
+    void DestroyAllItems();
 
     UINT GetNextRegID();
     BOOL DeliverNotification(HANDLE hTicket, DWORD dwOwnerPID);
@@ -102,35 +95,31 @@ CChangeNotifyServer::~CChangeNotifyServer()
 {
 }
 
-BOOL CChangeNotifyServer::AddItem(UINT nRegID, DWORD dwUserPID, HANDLE hRegEntry,
-                                  HWND hwndBroker, CDirectoryWatcher *pDirWatch)
+BOOL CChangeNotifyServer::AddItem(CWatchItem *pItem)
 {
     // find the empty room
     for (INT i = 0; i < m_items.GetSize(); ++i)
     {
-        if (m_items[i].nRegID == INVALID_REG_ID)
+        if (m_items[i] == NULL)
         {
             // found the room, populate it
-            m_items[i].nRegID = nRegID;
-            m_items[i].dwUserPID = dwUserPID;
-            m_items[i].hRegEntry = hRegEntry;
-            m_items[i].hwndBroker = hwndBroker;
-            m_items[i].pDirWatch = pDirWatch;
+            m_items[i] = pItem;
             return TRUE;
         }
     }
 
     // no empty room found
-    ITEM item = { nRegID, dwUserPID, hRegEntry, hwndBroker, pDirWatch };
-    m_items.Add(item);
+    m_items.Add(pItem);
     return TRUE;
 }
 
-void CChangeNotifyServer::DestroyItem(ITEM& item, DWORD dwOwnerPID, HWND *phwndBroker)
+void CChangeNotifyServer::DestroyItem(CWatchItem *pItem, HWND *phwndBroker)
 {
+    assert(pItem);
+
     // destroy broker if any and if first time
-    HWND hwndBroker = item.hwndBroker;
-    item.hwndBroker = NULL;
+    HWND hwndBroker = pItem->hwndBroker;
+    pItem->hwndBroker = NULL;
     if (hwndBroker && hwndBroker != *phwndBroker)
     {
         ::DestroyWindow(hwndBroker);
@@ -138,47 +127,62 @@ void CChangeNotifyServer::DestroyItem(ITEM& item, DWORD dwOwnerPID, HWND *phwndB
     }
 
     // request termination of pDirWatch if any
-    CDirectoryWatcher *pDirWatch = item.pDirWatch;
-    item.pDirWatch = NULL;
+    CDirectoryWatcher *pDirWatch = pItem->pDirWatch;
+    pItem->pDirWatch = NULL;
     if (pDirWatch)
         pDirWatch->RequestTermination();
 
     // free
-    SHFreeShared(item.hRegEntry, dwOwnerPID);
-    item.nRegID = INVALID_REG_ID;
-    item.dwUserPID = 0;
-    item.hRegEntry = NULL;
-    item.hwndBroker = NULL;
-    item.pDirWatch = NULL;
+    SHFree(pItem->pRegEntry);
+    delete pItem;
 }
 
-BOOL CChangeNotifyServer::RemoveItemsByRegID(UINT nRegID, DWORD dwOwnerPID)
+void CChangeNotifyServer::DestroyAllItems()
+{
+    for (INT i = 0; i < m_items.GetSize(); ++i)
+    {
+        if (m_items[i])
+        {
+            HWND hwndBroker = NULL;
+            DestroyItem(m_items[i], &hwndBroker);
+            m_items[i] = NULL;
+        }
+    }
+    m_items.RemoveAll();
+}
+
+BOOL CChangeNotifyServer::RemoveItemsByRegID(UINT nRegID)
 {
     BOOL bFound = FALSE;
     HWND hwndBroker = NULL;
     assert(nRegID != INVALID_REG_ID);
     for (INT i = 0; i < m_items.GetSize(); ++i)
     {
-        if (m_items[i].nRegID == nRegID)
+        if (m_items[i] && m_items[i]->nRegID == nRegID)
         {
             bFound = TRUE;
-            DestroyItem(m_items[i], dwOwnerPID, &hwndBroker);
+            DestroyItem(m_items[i], &hwndBroker);
+            m_items[i] = NULL;
         }
     }
     return bFound;
 }
 
-void CChangeNotifyServer::RemoveItemsByProcess(DWORD dwOwnerPID, DWORD dwUserPID)
+BOOL CChangeNotifyServer::RemoveItemsByProcess(DWORD dwUserPID)
 {
+    BOOL bFound = FALSE;
     HWND hwndBroker = NULL;
     assert(dwUserPID != 0);
     for (INT i = 0; i < m_items.GetSize(); ++i)
     {
-        if (m_items[i].dwUserPID == dwUserPID)
+        if (m_items[i] && m_items[i]->dwUserPID == dwUserPID)
         {
-            DestroyItem(m_items[i], dwOwnerPID, &hwndBroker);
+            bFound = TRUE;
+            DestroyItem(m_items[i], &hwndBroker);
+            m_items[i] = NULL;
         }
     }
+    return bFound;
 }
 
 // create a CDirectoryWatcher from a REGENTRY
@@ -186,10 +190,6 @@ static CDirectoryWatcher *
 CreateDirectoryWatcherFromRegEntry(LPREGENTRY pRegEntry)
 {
     if (pRegEntry->ibPidl == 0)
-        return NULL;
-
-    // it must be interrupt level if pRegEntry is a filesystem watch
-    if (!(pRegEntry->fSources & SHCNRF_InterruptLevel))
         return NULL;
 
     // get the path
@@ -239,30 +239,37 @@ LRESULT CChangeNotifyServer::OnRegister(UINT uMsg, WPARAM wParam, LPARAM lParam,
     HWND hwndBroker = pRegEntry->hwndBroker;
 
     // clone the registration entry
-    HANDLE hNewEntry = SHAllocShared(pRegEntry, pRegEntry->cbSize, dwOwnerPID);
-    if (hNewEntry == NULL)
+    LPREGENTRY pNewEntry = (LPREGENTRY)SHAlloc(pRegEntry->cbSize);
+    if (pNewEntry == NULL)
     {
         ERR("Out of memory\n");
         pRegEntry->nRegID = INVALID_REG_ID;
         SHUnlockShared(pRegEntry);
         return FALSE;
     }
+    CopyMemory(pNewEntry, pRegEntry, pRegEntry->cbSize);
 
     // create a directory watch if necessary
-    CDirectoryWatcher *pDirWatch = CreateDirectoryWatcherFromRegEntry(pRegEntry);
-    if (pDirWatch && !pDirWatch->RequestAddWatcher())
+    CDirectoryWatcher *pDirWatch = NULL;
+    if (pRegEntry->ibPidl && (pRegEntry->fSources & SHCNRF_InterruptLevel))
     {
-        pRegEntry->nRegID = INVALID_REG_ID;
-        SHUnlockShared(pRegEntry);
-        delete pDirWatch;
-        return FALSE;
+        pDirWatch = CreateDirectoryWatcherFromRegEntry(pRegEntry);
+        if (pDirWatch && !pDirWatch->RequestAddWatcher())
+        {
+            ERR("RequestAddWatcher failed: %u\n", pRegEntry->nRegID);
+            pRegEntry->nRegID = INVALID_REG_ID;
+            SHUnlockShared(pRegEntry);
+            delete pDirWatch;
+            return FALSE;
+        }
     }
 
     // unlock the registry entry
     SHUnlockShared(pRegEntry);
 
-    // add an ITEM
-    return AddItem(m_nNextRegID, dwUserPID, hNewEntry, hwndBroker, pDirWatch);
+    // add an item
+    CWatchItem *pItem = new CWatchItem { m_nNextRegID, dwUserPID, pNewEntry, hwndBroker, pDirWatch };
+    return AddItem(pItem);
 }
 
 // Message CN_UNREGISTER: Unregister registration entries.
@@ -282,9 +289,7 @@ LRESULT CChangeNotifyServer::OnUnRegister(UINT uMsg, WPARAM wParam, LPARAM lPara
     }
 
     // remove it
-    DWORD dwOwnerPID;
-    GetWindowThreadProcessId(m_hWnd, &dwOwnerPID);
-    return RemoveItemsByRegID(nRegID, dwOwnerPID);
+    return RemoveItemsByRegID(nRegID);
 }
 
 // Message CN_DELIVER_NOTIFICATION: Perform a delivery.
@@ -322,14 +327,14 @@ LRESULT CChangeNotifyServer::OnSuspendResume(UINT uMsg, WPARAM wParam, LPARAM lP
 //   return: Zero.
 LRESULT CChangeNotifyServer::OnRemoveByPID(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
-    DWORD dwOwnerPID, dwUserPID = (DWORD)wParam;
-    GetWindowThreadProcessId(m_hWnd, &dwOwnerPID);
-    RemoveItemsByProcess(dwOwnerPID, dwUserPID);
+    DWORD dwUserPID = (DWORD)wParam;
+    RemoveItemsByProcess(dwUserPID);
     return 0;
 }
 
 LRESULT CChangeNotifyServer::OnDestroy(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
+    DestroyAllItems();
     CDirectoryWatcher::RequestAllWatchersTermination();
     return 0;
 }
@@ -361,20 +366,13 @@ BOOL CChangeNotifyServer::DeliverNotification(HANDLE hTicket, DWORD dwOwnerPID)
     // for all items
     for (INT i = 0; i < m_items.GetSize(); ++i)
     {
-        // validate the item
-        if (m_items[i].nRegID == INVALID_REG_ID)
+        if (m_items[i] == NULL)
             continue;
 
-        HANDLE hRegEntry = m_items[i].hRegEntry;
-        if (hRegEntry == NULL)
-            continue;
-
-        // lock the registration entry
-        LPREGENTRY pRegEntry = (LPREGENTRY)SHLockSharedEx(hRegEntry, dwOwnerPID, FALSE);
+        LPREGENTRY pRegEntry = m_items[i]->pRegEntry;
         if (pRegEntry == NULL || pRegEntry->dwMagic != REGENTRY_MAGIC)
         {
             ERR("pRegEntry is invalid\n");
-            SHUnlockShared(pRegEntry);
             continue;
         }
 
@@ -386,10 +384,8 @@ BOOL CChangeNotifyServer::DeliverNotification(HANDLE hTicket, DWORD dwOwnerPID)
             TRACE("Notifying: %p, 0x%x, %p, %lu\n",
                   pRegEntry->hwnd, pRegEntry->uMsg, hTicket, dwOwnerPID);
             SendMessageW(pRegEntry->hwnd, pRegEntry->uMsg, (WPARAM)hTicket, dwOwnerPID);
+            TRACE("GetLastError(): %ld\n", ::GetLastError());
         }
-
-        // unlock the registration entry
-        SHUnlockShared(pRegEntry);
     }
 
     // unlock the ticket
@@ -400,91 +396,58 @@ BOOL CChangeNotifyServer::DeliverNotification(HANDLE hTicket, DWORD dwOwnerPID)
 
 BOOL CChangeNotifyServer::ShouldNotify(LPDELITICKET pTicket, LPREGENTRY pRegEntry)
 {
-    LPITEMIDLIST pidl, pidl1 = NULL, pidl2 = NULL;
-    WCHAR szPath[MAX_PATH], szPath1[MAX_PATH], szPath2[MAX_PATH];
-    INT cch, cch1, cch2;
+#define RETURN(x) do { \
+    TRACE("ShouldNotify return %d\n", (x)); \
+    return (x); \
+} while (0)
 
-    // check fSources
-    if (pTicket->uFlags & SHCNE_INTERRUPT)
+    if (pTicket->wEventId & SHCNE_INTERRUPT)
     {
         if (!(pRegEntry->fSources & SHCNRF_InterruptLevel))
-            return FALSE;
+            RETURN(FALSE);
+        if (!pRegEntry->ibPidl)
+            RETURN(FALSE);
     }
     else
     {
         if (!(pRegEntry->fSources & SHCNRF_ShellLevel))
-            return FALSE;
+            RETURN(FALSE);
     }
 
-    if (pRegEntry->ibPidl == 0)
-        return TRUE; // there is no PIDL
+    if (!(pTicket->wEventId & pRegEntry->fEvents))
+        RETURN(FALSE);
 
-    // get the stored pidl
-    pidl = (LPITEMIDLIST)((LPBYTE)pRegEntry + pRegEntry->ibPidl);
-    if (pidl->mkid.cb == 0 && pRegEntry->fRecursive)
-        return TRUE;    // desktop is the root
-
-    // check pidl1
+    LPITEMIDLIST pidl = NULL, pidl1 = NULL, pidl2 = NULL;
+    if (pRegEntry->ibPidl)
+        pidl = (LPITEMIDLIST)((LPBYTE)pRegEntry + pRegEntry->ibPidl);
     if (pTicket->ibOffset1)
-    {
         pidl1 = (LPITEMIDLIST)((LPBYTE)pTicket + pTicket->ibOffset1);
-        if (ILIsEqual(pidl, pidl1) || ILIsParent(pidl, pidl1, !pRegEntry->fRecursive))
-            return TRUE;
-    }
-
-    // check pidl2
     if (pTicket->ibOffset2)
-    {
         pidl2 = (LPITEMIDLIST)((LPBYTE)pTicket + pTicket->ibOffset2);
-        if (ILIsEqual(pidl, pidl2) || ILIsParent(pidl, pidl2, !pRegEntry->fRecursive))
-            return TRUE;
-    }
 
-    // The paths:
-    //   "C:\\Path\\To\\File1"
-    //   "C:\\Path\\To\\File1Test"
-    // should be distinguished in comparison, so we add backslash at last as follows:
-    //   "C:\\Path\\To\\File1\\"
-    //   "C:\\Path\\To\\File1Test\\"
-    if (SHGetPathFromIDListW(pidl, szPath))
+    if (pidl == NULL || (pTicket->wEventId & SHCNE_GLOBALEVENTS))
+        RETURN(TRUE);
+
+    if (pRegEntry->fRecursive)
     {
-        PathAddBackslashW(szPath);
-        cch = lstrlenW(szPath);
-
-        if (pidl1 && SHGetPathFromIDListW(pidl1, szPath1))
+        if (ILIsParent(pidl, pidl1, FALSE) ||
+            (pidl2 && ILIsParent(pidl, pidl2, FALSE)))
         {
-            PathAddBackslashW(szPath1);
-            cch1 = lstrlenW(szPath1);
-
-            // Is szPath1 a subfile or subdirectory of szPath?
-            if (cch < cch1 &&
-                (pRegEntry->fRecursive ||
-                 wcschr(&szPath1[cch], L'\\') == &szPath1[cch1 - 1]))
-            {
-                szPath1[cch] = 0;
-                if (lstrcmpiW(szPath, szPath1) == 0)
-                    return TRUE;
-            }
+            RETURN(TRUE);
         }
-
-        if (pidl2 && SHGetPathFromIDListW(pidl2, szPath2))
+    }
+    else
+    {
+        if (ILIsEqual(pidl, pidl1) ||
+            ILIsParent(pidl, pidl1, TRUE) ||
+            (pidl2 && ILIsParent(pidl, pidl2, TRUE)))
         {
-            PathAddBackslashW(szPath2);
-            cch2 = lstrlenW(szPath2);
-
-            // Is szPath2 a subfile or subdirectory of szPath?
-            if (cch < cch2 &&
-                (pRegEntry->fRecursive ||
-                 wcschr(&szPath2[cch], L'\\') == &szPath2[cch2 - 1]))
-            {
-                szPath2[cch] = 0;
-                if (lstrcmpiW(szPath, szPath2) == 0)
-                    return TRUE;
-            }
+            RETURN(TRUE);
         }
     }
 
-    return FALSE;
+    RETURN(FALSE);
+#undef RETURN
 }
 
 HRESULT WINAPI CChangeNotifyServer::GetWindow(HWND* phwnd)
@@ -503,10 +466,10 @@ HRESULT WINAPI CChangeNotifyServer::ContextSensitiveHelp(BOOL fEnterMode)
 HRESULT CChangeNotifyServer::Initialize()
 {
     // This is called by CChangeNotifyServer_CreateInstance right after instantiation.
-    // Create the window of the server here.
-    Create(0);
-    if (!m_hWnd)
+    HWND hwnd = SHCreateDefaultWorkerWindow();
+    if (!hwnd)
         return E_FAIL;
+    SubclassWindow(hwnd);
     return S_OK;
 }
 

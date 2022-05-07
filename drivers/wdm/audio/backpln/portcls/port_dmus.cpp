@@ -14,28 +14,11 @@
 
 #include <debug.h>
 
-class CPortDMus : public IPortDMus,
-                  public ISubdevice
+class CPortDMus : public CUnknownImpl<IPortDMus, ISubdevice>
 {
 public:
     STDMETHODIMP QueryInterface( REFIID InterfaceId, PVOID* Interface);
 
-    STDMETHODIMP_(ULONG) AddRef()
-    {
-        InterlockedIncrement(&m_Ref);
-        return m_Ref;
-    }
-    STDMETHODIMP_(ULONG) Release()
-    {
-        InterlockedDecrement(&m_Ref);
-
-        if (!m_Ref)
-        {
-            delete this;
-            return 0;
-        }
-        return m_Ref;
-    }
     IMP_IPortDMus;
     IMP_ISubdevice;
     CPortDMus(IUnknown *OuterUnknown){}
@@ -55,13 +38,11 @@ protected:
     PPCFILTER_DESCRIPTOR m_pDescriptor;
     PSUBDEVICE_DESCRIPTOR m_SubDeviceDescriptor;
 
-    LONG m_Ref;
-
     friend VOID GetDMusMiniport(IN IPortDMus * iface, IN PMINIPORTDMUS * Miniport, IN PMINIPORTMIDI * MidiMiniport);
 
 };
 
-static GUID InterfaceGuids[3] = 
+static GUID InterfaceGuids[3] =
 {
     {
         /// KS_CATEGORY_AUDIO
@@ -268,12 +249,12 @@ CPortDMus::Init(
     }
 
     // create the subdevice descriptor
-    Status = PcCreateSubdeviceDescriptor(&m_SubDeviceDescriptor, 
+    Status = PcCreateSubdeviceDescriptor(&m_SubDeviceDescriptor,
                                          3,
-                                         InterfaceGuids, 
-                                         0, 
+                                         InterfaceGuids,
+                                         0,
                                          NULL,
-                                         2, 
+                                         2,
                                          PortDMusPropertySet,
                                          0,
                                          0,
@@ -398,7 +379,7 @@ CPortDMus::NewIrpTarget(
     IN PUNKNOWN Unknown,
     IN POOL_TYPE PoolType,
     IN PDEVICE_OBJECT DeviceObject,
-    IN PIRP Irp, 
+    IN PIRP Irp,
     IN KSOBJECT_CREATE *CreateObject)
 {
     NTSTATUS Status;
@@ -499,8 +480,8 @@ CPortDMus::PinCount(
     }
 
     // FIXME
-    // scan filter descriptor 
-    
+    // scan filter descriptor
+
     return STATUS_UNSUCCESSFUL;
 }
 
@@ -531,7 +512,7 @@ NewPortDMus(
 
 VOID
 GetDMusMiniport(
-    IN IPortDMus * iface, 
+    IN IPortDMus * iface,
     IN PMINIPORTDMUS * Miniport,
     IN PMINIPORTMIDI * MidiMiniport)
 {

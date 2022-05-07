@@ -10,6 +10,7 @@
 /* INCLUDES *******************************************************************/
 
 #include <freeldr.h>
+#include "../ntldr/ntldropts.h"
 
 /* GLOBALS ********************************************************************/
 
@@ -110,14 +111,12 @@ RamDiskLoadVirtualFile(
     ULONG RamFileId;
     ULONG ChunkSize, Count;
     ULONGLONG TotalRead;
-    PCHAR MsgBuffer = "Loading RamDisk...";
     ULONG PercentPerChunk, Percent;
     FILEINFORMATION Information;
     LARGE_INTEGER Position;
 
     /* Display progress */
-    UiDrawBackdrop();
-    UiDrawProgressBarCenter(1, 100, MsgBuffer);
+    UiDrawProgressBarCenter("Loading RamDisk...");
 
     /* Try opening the Ramdisk file */
     Status = FsOpenFile(FileName, DefaultPath, OpenReadOnly, &RamFileId);
@@ -135,8 +134,8 @@ RamDiskLoadVirtualFile(
     /* FIXME: For now, limit RAM disks to 4GB */
     if (Information.EndingAddress.HighPart != 0)
     {
-        UiMessageBox("RAM disk too big.");
         ArcClose(RamFileId);
+        UiMessageBox("RAM disk too big.");
         return ENOMEM;
     }
     RamDiskFileSize = Information.EndingAddress.QuadPart;
@@ -145,20 +144,22 @@ RamDiskLoadVirtualFile(
     /* Allocate memory for it */
     ChunkSize = 8 * 1024 * 1024;
     if (RamDiskFileSize < ChunkSize)
-        Percent = PercentPerChunk = 0;
+        PercentPerChunk = 0;
     else
-        Percent = PercentPerChunk = 100 / (RamDiskFileSize / ChunkSize);
+        PercentPerChunk = 100 * ChunkSize / RamDiskFileSize;
     RamDiskBase = MmAllocateMemoryWithType(RamDiskFileSize, LoaderXIPRom);
     if (!RamDiskBase)
     {
-        UiMessageBox("Failed to allocate memory for RAM disk.");
+        RamDiskFileSize = 0;
         ArcClose(RamFileId);
+        UiMessageBox("Failed to allocate memory for RAM disk.");
         return ENOMEM;
     }
 
     /*
      * Read it in chunks
      */
+    Percent = 0;
     for (TotalRead = 0; TotalRead < RamDiskFileSize; TotalRead += ChunkSize)
     {
         /* Check if we're at the last chunk */
@@ -168,8 +169,8 @@ RamDiskLoadVirtualFile(
             ChunkSize = (ULONG)(RamDiskFileSize - TotalRead);
         }
 
-        /* Draw progress */
-        UiDrawProgressBarCenter(Percent, 100, MsgBuffer);
+        /* Update progress */
+        UiUpdateProgressBar(Percent, NULL);
         Percent += PercentPerChunk;
 
         /* Copy the contents */
@@ -194,6 +195,7 @@ RamDiskLoadVirtualFile(
             return ((Status != ESUCCESS) ? Status : EIO);
         }
     }
+    UiUpdateProgressBar(100, NULL);
 
     ArcClose(RamFileId);
 
@@ -241,30 +243,31 @@ RamDiskInitialize(
         /* If we don't have any load options, initialize an empty Ramdisk */
         if (LoadOptions)
         {
-            PCHAR Option;
+            PCSTR Option;
+            ULONG FileNameLength;
 
             /* Ramdisk image file name */
-            Option = strstr(LoadOptions, "/RDPATH=");
-            if (Option)
+            Option = NtLdrGetOptionEx(LoadOptions, "RDPATH=", &FileNameLength);
+            if (Option && (FileNameLength > 7))
             {
-                /* Copy the file name - everything until the next separator */
-                Option += 8;
+                /* Copy the file name */
+                Option += 7; FileNameLength -= 7;
                 RtlStringCbCopyNA(FileName, sizeof(FileName),
-                                  Option, strcspn(Option, " \t") * sizeof(CHAR));
+                                  Option, FileNameLength * sizeof(CHAR));
             }
 
             /* Ramdisk image length */
-            Option = strstr(LoadOptions, "/RDIMAGELENGTH=");
+            Option = NtLdrGetOption(LoadOptions, "RDIMAGELENGTH=");
             if (Option)
             {
-                RamDiskImageLength = _atoi64(Option + 15);
+                RamDiskImageLength = _atoi64(Option + 14);
             }
 
             /* Ramdisk image offset */
-            Option = strstr(LoadOptions, "/RDIMAGEOFFSET=");
+            Option = NtLdrGetOption(LoadOptions, "RDIMAGEOFFSET=");
             if (Option)
             {
-                RamDiskImageOffset = atol(Option + 15);
+                RamDiskImageOffset = atol(Option + 14);
             }
         }
 

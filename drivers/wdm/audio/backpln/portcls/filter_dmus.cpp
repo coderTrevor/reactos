@@ -14,27 +14,11 @@
 
 #include <debug.h>
 
-class CPortFilterDMus : public IPortFilterDMus
+class CPortFilterDMus : public CUnknownImpl<IPortFilterDMus>
 {
 public:
     STDMETHODIMP QueryInterface( REFIID InterfaceId, PVOID* Interface);
 
-    STDMETHODIMP_(ULONG) AddRef()
-    {
-        InterlockedIncrement(&m_Ref);
-        return m_Ref;
-    }
-    STDMETHODIMP_(ULONG) Release()
-    {
-        InterlockedDecrement(&m_Ref);
-
-        if (!m_Ref)
-        {
-            delete this;
-            return 0;
-        }
-        return m_Ref;
-    }
     IMP_IPortFilterDMus;
     CPortFilterDMus(IUnknown *OuterUnknown){}
     virtual ~CPortFilterDMus(){}
@@ -43,7 +27,6 @@ protected:
     IPortDMus* m_Port;
     IPortPinDMus ** m_Pins;
     SUBDEVICE_DESCRIPTOR * m_Descriptor;
-    LONG m_Ref;
 };
 
 NTSTATUS
@@ -145,7 +128,7 @@ CPortFilterDMus::DeviceIoControl(
     if (IoStack->Parameters.DeviceIoControl.IoControlCode != IOCTL_KS_PROPERTY)
     {
         DPRINT("Unhandled function %lx Length %x\n", IoStack->Parameters.DeviceIoControl.IoControlCode, IoStack->Parameters.DeviceIoControl.InputBufferLength);
-        
+
         Irp->IoStatus.Status = STATUS_SUCCESS;
 
         IoCompleteRequest(Irp, IO_NO_INCREMENT);
@@ -339,7 +322,7 @@ CPortFilterDMus::NotifyPins()
 }
 
 
-NTSTATUS 
+NTSTATUS
 NewPortFilterDMus(
     OUT PPORTFILTERDMUS * OutFilter)
 {

@@ -16,32 +16,15 @@
 
 GUID IID_IDmaChannelSlave;
 
-class CPortWaveCyclic : public IPortWaveCyclic,
-                        public IPortEvents,
-                        public ISubdevice
+class CPortWaveCyclic : public CUnknownImpl<IPortWaveCyclic, IPortEvents, ISubdevice>
 {
 public:
     STDMETHODIMP QueryInterface( REFIID InterfaceId, PVOID* Interface);
 
-    STDMETHODIMP_(ULONG) AddRef()
-    {
-        InterlockedIncrement(&m_Ref);
-        return m_Ref;
-    }
-    STDMETHODIMP_(ULONG) Release()
-    {
-        InterlockedDecrement(&m_Ref);
-        if (!m_Ref)
-        {
-            //delete this;
-            return 0;
-        }
-        return m_Ref;
-    }
     IMP_IPortWaveCyclic;
     IMP_ISubdevice;
     IMP_IPortEvents;
-    CPortWaveCyclic(IUnknown *OuterUnknown){}
+    CPortWaveCyclic(IUnknown *OuterUnknown) {}
     virtual ~CPortWaveCyclic(){}
 
 protected:
@@ -53,15 +36,13 @@ protected:
     PSUBDEVICE_DESCRIPTOR m_SubDeviceDescriptor;
     IPortFilterWaveCyclic * m_Filter;
 
-    LONG m_Ref;
-
     friend PMINIPORTWAVECYCLIC GetWaveCyclicMiniport(IN IPortWaveCyclic* iface);
     friend PDEVICE_OBJECT GetDeviceObject(PPORTWAVECYCLIC iface);
 };
 
 GUID KSPROPERTY_SETID_Topology                = {0x720D4AC0L, 0x7533, 0x11D0, {0xA5, 0xD6, 0x28, 0xDB, 0x04, 0xC1, 0x00, 0x00}};
 
-static GUID InterfaceGuids[4] = 
+static GUID InterfaceGuids[4] =
 {
     {
          //KS_CATEGORY_AUDIO
@@ -544,8 +525,8 @@ CPortWaveCyclic::PinCount(
     }
 
     // FIXME
-    // scan filter descriptor 
-    
+    // scan filter descriptor
+
     return STATUS_UNSUCCESSFUL;
 }
 

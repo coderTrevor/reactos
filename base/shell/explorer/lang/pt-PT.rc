@@ -13,10 +13,10 @@ BEGIN
         MENUITEM "&Janelas em Cascata", ID_SHELL_CMD_CASCADE_WND
         MENUITEM "Lado a Lado &Horizontalmente", ID_SHELL_CMD_TILE_WND_H
         MENUITEM "Lado a Lado &Verticalmente", ID_SHELL_CMD_TILE_WND_V
-        MENUITEM "&Exibir Área de Trabalho", ID_SHELL_CMD_SHOW_DESKTOP
+        MENUITEM "&Mostrar a área de trabalho", ID_SHELL_CMD_SHOW_DESKTOP
         MENUITEM "&Retroceder", ID_SHELL_CMD_UNDO_ACTION
         MENUITEM SEPARATOR
-        MENUITEM "&Gerenciador de Tarefas", ID_SHELL_CMD_OPEN_TASKMGR
+        MENUITEM "&Gestor de Tarefas", ID_SHELL_CMD_OPEN_TASKMGR
         MENUITEM SEPARATOR
         MENUITEM "&Bloquear a barra de tarefas", ID_LOCKTASKBAR
         MENUITEM "P&ropriedades", ID_SHELL_CMD_PROPERTIES
@@ -40,7 +40,7 @@ BEGIN
         BEGIN
             MENUITEM "(Vazio)", -1, MFT_STRING, MFS_GRAYED
         END
-        POPUP "&Configurações", IDM_SETTINGS
+        POPUP "D&efinições", IDM_SETTINGS
         BEGIN
             MENUITEM "&Painel de Controle", IDM_CONTROLPANEL, MFT_STRING, MFS_GRAYED
             MENUITEM "", -1, MFT_SEPARATOR
@@ -190,11 +190,11 @@ BEGIN
     IDS_PROPERTIES "P&ropriedades"
     IDS_OPEN_ALL_USERS "A&brir Todos os Utilizadores"
     IDS_EXPLORE_ALL_USERS "E&xplorar Todos os Utilizadores"
-    IDS_STARTUP_ERROR "O sistema não pode iniciar o explorer porque o registo está corrompido ou inacessível."
+    IDS_STARTUP_ERROR "O sistema não pode iniciar o Explorador porque o registo está corrompido ou inacessível."
 END
 
 STRINGTABLE
 BEGIN
-    IDS_TASKBAR_STARTMENU_PROP_CAPTION "da Barra de Tarefas e Menu Iniciar"
+    IDS_TASKBAR_STARTMENU_PROP_CAPTION "Barra de Tarefas e Menu Iniciar"
     IDS_RESTORE_ALL "&Mostrar janelas abertas"
 END

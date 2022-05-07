@@ -1,4 +1,4 @@
-/* Spanish translation by Ismael Ferreras Morezuelas (Swyter) */
+/* Spanish translation by Ismael Ferreras Morezuelas (Swyter), Catalin Gabriel Draghita (jeffbox12) */
 
 LANGUAGE LANG_SPANISH, SUBLANG_NEUTRAL
 
@@ -8,8 +8,9 @@ BEGIN
     "^C", CMD_COPY
     "^B", CMD_SEARCH
     "^T", CMD_GOTO
-    "^R", CMD_REPLACE, VIRTKEY, CONTROL
+    "R", CMD_REPLACE, VIRTKEY, CONTROL
     "^N", CMD_NEW
+    "N", CMD_NEW_WINDOW, VIRTKEY,CONTROL , SHIFT
     "^A", CMD_OPEN
     "^P", CMD_PRINT
     "^G", CMD_SAVE
@@ -25,6 +26,7 @@ BEGIN
     POPUP "&Archivo"
     BEGIN
         MENUITEM "&Nuevo\tCtrl+N", CMD_NEW
+        MENUITEM "New &Window\tCtrl+Shift+N", CMD_NEW_WINDOW
         MENUITEM "&Abrir\tCtrl+A", CMD_OPEN
         MENUITEM "&Guardar\tCtrl+G", CMD_SAVE
         MENUITEM "Guardar &como...", CMD_SAVE_AS
@@ -64,7 +66,7 @@ BEGIN
     BEGIN
         MENUITEM "Í&ndice", CMD_HELP_CONTENTS
         MENUITEM SEPARATOR
-        MENUITEM "&About Notepad", CMD_HELP_ABOUT_NOTEPAD
+        MENUITEM "&Acerca de Bloc de notas", CMD_HELP_ABOUT_NOTEPAD
     END
 END
 
@@ -150,7 +152,7 @@ bloc de notas.\n Utilice otro editor."
 inténtelo de nuevo"
     STRING_DOESNOTEXIST "El archivo '%s'\nno existe\n\n ¿Desea crear \
 un nuevo archivo?"
-    STRING_NOTSAVED "El texto en el archivo '%s' ha cambiado\n\n \
+    STRING_NOTSAVED "El texto en el archivo '%s' ha cambiado\n\n\
 ¿Desea guardar los cambios?"
     STRING_NOTFOUND "No se encontró '%s'."
     STRING_OUT_OF_MEMORY "No hay suficiente memoria para terminar esta \

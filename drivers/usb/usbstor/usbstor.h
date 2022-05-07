@@ -169,6 +169,24 @@ typedef struct _ERRORHANDLER_WORKITEM_DATA
     PIRP Irp;
 } ERRORHANDLER_WORKITEM_DATA, *PERRORHANDLER_WORKITEM_DATA;
 
+// we need this to be compatible with ReactOS' classpnp (which is compiled with NTDDI_WIN8)
+typedef struct _STORAGE_ADAPTER_DESCRIPTOR_WIN8 {
+    ULONG Version;
+    ULONG Size;
+    ULONG MaximumTransferLength;
+    ULONG MaximumPhysicalPages;
+    ULONG AlignmentMask;
+    BOOLEAN AdapterUsesPio;
+    BOOLEAN AdapterScansDown;
+    BOOLEAN CommandQueueing;
+    BOOLEAN AcceleratedTransfer;
+    UCHAR BusType;
+    USHORT BusMajorVersion;
+    USHORT BusMinorVersion;
+    UCHAR SrbType;
+    UCHAR AddressType;
+} STORAGE_ADAPTER_DESCRIPTOR_WIN8, *PSTORAGE_ADAPTER_DESCRIPTOR_WIN8;
+
 
 //---------------------------------------------------------------------
 //
@@ -197,11 +215,6 @@ USBSTOR_CreatePDO(
 //
 // misc.c routines
 //
-NTSTATUS
-NTAPI
-USBSTOR_SyncForwardIrp(
-    IN PDEVICE_OBJECT DeviceObject,
-    IN OUT PIRP Irp);
 
 NTSTATUS
 NTAPI
@@ -227,13 +240,6 @@ NTSTATUS
 USBSTOR_GetMaxLUN(
     IN PDEVICE_OBJECT DeviceObject,
     IN PFDO_DEVICE_EXTENSION DeviceExtension);
-
-NTSTATUS
-NTAPI
-USBSTOR_SyncForwardIrpCompletionRoutine(
-    PDEVICE_OBJECT DeviceObject,
-    PIRP Irp,
-    PVOID Context);
 
 NTSTATUS
 USBSTOR_ResetDevice(

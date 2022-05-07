@@ -17,9 +17,12 @@
  */
 
 #include <freeldr.h>
+#include <drivers/xbox/superio.h>
 
 #include <debug.h>
 DBG_DEFAULT_CHANNEL(HWDETECT);
+
+#define MAX_XBOX_COM_PORTS    2
 
 extern PVOID FrameBuffer;
 extern ULONG FrameBufferSize;
@@ -51,30 +54,19 @@ XboxGetSerialPort(ULONG Index, PULONG Irq)
     static const UCHAR Device[MAX_XBOX_COM_PORTS] = {LPC_DEVICE_SERIAL_PORT_1, LPC_DEVICE_SERIAL_PORT_2};
     ULONG ComBase = 0;
 
-    // Enter Configuration
-    WRITE_PORT_UCHAR((PUCHAR)LPC_IO_BASE, LPC_ENTER_CONFIG_KEY);
+    LpcEnterConfig();
 
     // Select serial device
-    WRITE_PORT_UCHAR((PUCHAR)LPC_IO_BASE, LPC_CONFIG_DEVICE_NUMBER);
-    WRITE_PORT_UCHAR((PUCHAR)(LPC_IO_BASE + 1), Device[Index]);
+    LpcWriteRegister(LPC_CONFIG_DEVICE_NUMBER, Device[Index]);
 
     // Check if selected device is active
-    WRITE_PORT_UCHAR((PUCHAR)LPC_IO_BASE, LPC_CONFIG_DEVICE_ACTIVATE);
-    if (READ_PORT_UCHAR((PUCHAR)(LPC_IO_BASE + 1)) == 1)
+    if (LpcReadRegister(LPC_CONFIG_DEVICE_ACTIVATE) == 1)
     {
-        // Read LSB
-        WRITE_PORT_UCHAR((PUCHAR)LPC_IO_BASE, LPC_CONFIG_DEVICE_BASE_ADDRESS_LOW);
-        ComBase = READ_PORT_UCHAR((PUCHAR)(LPC_IO_BASE + 1));
-        // Read MSB
-        WRITE_PORT_UCHAR((PUCHAR)LPC_IO_BASE, LPC_CONFIG_DEVICE_BASE_ADDRESS_HIGH);
-        ComBase |= (READ_PORT_UCHAR((PUCHAR)(LPC_IO_BASE + 1)) << 8);
-        // Read IRQ
-        WRITE_PORT_UCHAR((PUCHAR)LPC_IO_BASE, LPC_CONFIG_DEVICE_INTERRUPT);
-        *Irq = READ_PORT_UCHAR((PUCHAR)(LPC_IO_BASE + 1));
+        ComBase = LpcGetIoBase();
+        *Irq = LpcGetIrqPrimary();
     }
 
-    // Exit Configuration
-    WRITE_PORT_UCHAR((PUCHAR)LPC_IO_BASE, LPC_EXIT_CONFIG_KEY);
+    LpcExitConfig();
 
     return ComBase;
 }
@@ -114,11 +106,11 @@ XboxGetHarddiskConfigurationData(UCHAR DriveNumber, ULONG* pSize)
     PartialResourceList = FrLdrHeapAlloc(Size, TAG_HW_RESOURCE_LIST);
     if (PartialResourceList == NULL)
     {
-        ERR("Failed to allocate a full resource descriptor\n");
+        ERR("Failed to allocate resource descriptor\n");
         return NULL;
     }
 
-    memset(PartialResourceList, 0, Size);
+    RtlZeroMemory(PartialResourceList, Size);
     PartialResourceList->Version = 1;
     PartialResourceList->Revision = 1;
     PartialResourceList->Count = 1;
@@ -183,9 +175,9 @@ DetectDisplayController(PCONFIGURATION_COMPONENT_DATA BusKey)
         ERR("Failed to allocate resource descriptor\n");
         return;
     }
-    memset(PartialResourceList, 0, Size);
 
     /* Initialize resource descriptor */
+    RtlZeroMemory(PartialResourceList, Size);
     PartialResourceList->Version = 1;
     PartialResourceList->Revision = 1;
     PartialResourceList->Count = 1;
@@ -226,12 +218,12 @@ DetectIsaBios(PCONFIGURATION_COMPONENT_DATA SystemKey, ULONG *BusNumber)
     PartialResourceList = FrLdrHeapAlloc(Size, TAG_HW_RESOURCE_LIST);
     if (PartialResourceList == NULL)
     {
-        TRACE("Failed to allocate resource descriptor\n");
+        ERR("Failed to allocate resource descriptor\n");
         return;
     }
 
     /* Initialize resource descriptor */
-    memset(PartialResourceList, 0, Size);
+    RtlZeroMemory(PartialResourceList, Size);
     PartialResourceList->Version = 1;
     PartialResourceList->Revision = 1;
     PartialResourceList->Count = 0;
@@ -309,29 +301,40 @@ VOID XboxHwIdle(VOID)
 VOID
 MachInit(const char *CmdLine)
 {
+    PCI_TYPE1_CFG_BITS PciCfg1;
     ULONG PciId;
-
-    memset(&MachVtbl, 0, sizeof(MACHVTBL));
 
     /* Check for Xbox by identifying device at PCI 0:0:0, if it's
      * 0x10DE/0x02A5 then we're running on an Xbox */
-    WRITE_PORT_ULONG((PULONG)0xCF8, CONFIG_CMD(0, 0, 0));
-    PciId = READ_PORT_ULONG((PULONG)0xCFC);
+
+    /* Select Host to PCI bridge */
+    PciCfg1.u.bits.Enable = 1;
+    PciCfg1.u.bits.BusNumber = 0;
+    PciCfg1.u.bits.DeviceNumber = 0;
+    PciCfg1.u.bits.FunctionNumber = 0;
+    /* Select register VendorID & DeviceID */
+    PciCfg1.u.bits.RegisterNumber = 0x00;
+    PciCfg1.u.bits.Reserved = 0;
+
+    WRITE_PORT_ULONG(PCI_TYPE1_ADDRESS_PORT, PciCfg1.u.AsULONG);
+    PciId = READ_PORT_ULONG((PULONG)PCI_TYPE1_DATA_PORT);
     if (PciId != 0x02A510DE)
     {
-        ERR("This is not original Xbox!\n");
+        ERR("This is not an original Xbox!\n");
 
         /* Disable and halt the CPU */
         _disable();
         __halt();
 
-        while (TRUE);
+        while (TRUE)
+            NOTHING;
     }
 
     /* Set LEDs to red before anything is initialized */
     XboxSetLED("rrrr");
 
     /* Setup vtbl */
+    RtlZeroMemory(&MachVtbl, sizeof(MachVtbl));
     MachVtbl.ConsPutChar = XboxConsPutChar;
     MachVtbl.ConsKbHit = XboxConsKbHit;
     MachVtbl.ConsGetCh = XboxConsGetCh;
@@ -378,7 +381,7 @@ XboxPrepareForReactOS(VOID)
     XboxVideoPrepareForReactOS();
     XboxDiskInit(FALSE);
     DiskStopFloppyMotor();
-    
+
     /* Turn off debug messages to screen */
     DebugDisableScreenPort();
 }

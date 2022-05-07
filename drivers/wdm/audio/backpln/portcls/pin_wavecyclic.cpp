@@ -14,8 +14,7 @@
 
 #include <debug.h>
 
-class CPortPinWaveCyclic : public IPortPinWaveCyclic,
-                           public IServiceSink
+class CPortPinWaveCyclic : public CUnknownImpl<IPortPinWaveCyclic, IServiceSink>
 {
 public:
     inline
@@ -25,33 +24,41 @@ public:
         POOL_TYPE PoolType,
         ULONG Tag)
     {
-        PVOID P = ExAllocatePoolWithTag(PoolType, Size, Tag);
-        if (P)
-            RtlZeroMemory(P, Size);
-        return P;
+        return ExAllocatePoolWithTag(PoolType, Size, Tag);
     }
 
     STDMETHODIMP QueryInterface( REFIID InterfaceId, PVOID* Interface);
 
-    STDMETHODIMP_(ULONG) AddRef()
-    {
-        InterlockedIncrement(&m_Ref);
-        return m_Ref;
-    }
-    STDMETHODIMP_(ULONG) Release()
-    {
-        InterlockedDecrement(&m_Ref);
-
-        if (!m_Ref)
-        {
-            delete this;
-            return 0;
-        }
-        return m_Ref;
-    }
     IMP_IPortPinWaveCyclic;
     IMP_IServiceSink;
-    CPortPinWaveCyclic(IUnknown *OuterUnknown){}
+    CPortPinWaveCyclic(IUnknown *OuterUnknown) :
+        m_Port(nullptr),
+        m_Filter(nullptr),
+        m_KsPinDescriptor(nullptr),
+        m_Miniport(nullptr),
+        m_ServiceGroup(nullptr),
+        m_DmaChannel(nullptr),
+        m_Stream(nullptr),
+        m_State(KSSTATE_STOP),
+        m_Format(nullptr),
+        m_ConnectDetails(nullptr),
+        m_CommonBuffer(nullptr),
+        m_CommonBufferSize(0),
+        m_CommonBufferOffset(0),
+        m_IrpQueue(nullptr),
+        m_FrameSize(0),
+        m_Capture(FALSE),
+        m_TotalPackets(0),
+        m_StopCount(0),
+        m_Position({0}),
+        m_AllocatorFraming({{0}}),
+        m_Descriptor(nullptr),
+        m_EventListLock(0),
+        m_EventList({nullptr}),
+        m_ResetState(KSRESET_BEGIN),
+        m_Delay(0)
+    {
+    }
     virtual ~CPortPinWaveCyclic(){}
 
 protected:
@@ -100,8 +107,6 @@ protected:
     KSRESET m_ResetState;
 
     ULONG m_Delay;
-
-    LONG m_Ref;
 };
 
 
@@ -177,7 +182,7 @@ KSPROPERTY_SET PinWaveCyclicPropertySet[] =
     }
 };
 
-KSEVENT_SET PinWaveCyclicEventSet[] = 
+KSEVENT_SET PinWaveCyclicEventSet[] =
 {
     {
         &KSEVENTSETID_LoopedStreaming,
@@ -202,7 +207,7 @@ CPortPinWaveCyclic::QueryInterface(
 {
     DPRINT("IServiceSink_fnQueryInterface entered\n");
 
-    if (IsEqualGUIDAligned(refiid, IID_IIrpTarget) || 
+    if (IsEqualGUIDAligned(refiid, IID_IIrpTarget) ||
         IsEqualGUIDAligned(refiid, IID_IUnknown))
     {
         *Output = PVOID(PUNKNOWN((IIrpTarget*)this));
@@ -244,10 +249,10 @@ PinWaveCyclicAddEndOfStreamEvent(
     PSUBDEVICE_DESCRIPTOR Descriptor;
     CPortPinWaveCyclic *Pin;
 
-    // get sub device descriptor 
+    // get sub device descriptor
     Descriptor = (PSUBDEVICE_DESCRIPTOR)KSPROPERTY_ITEM_IRP_STORAGE(Irp);
 
-    // sanity check 
+    // sanity check
     PC_ASSERT(Descriptor);
     PC_ASSERT(Descriptor->PortPin);
     PC_ASSERT_IRQL(DISPATCH_LEVEL);
@@ -280,10 +285,10 @@ PinWaveCyclicAddLoopedStreamEvent(
     PSUBDEVICE_DESCRIPTOR Descriptor;
     CPortPinWaveCyclic *Pin;
 
-    // get sub device descriptor 
+    // get sub device descriptor
     Descriptor = (PSUBDEVICE_DESCRIPTOR)KSEVENT_ITEM_IRP_STORAGE(Irp);
 
-    // sanity check 
+    // sanity check
     PC_ASSERT(Descriptor);
     PC_ASSERT(Descriptor->PortPin);
     PC_ASSERT_IRQL(DISPATCH_LEVEL);
@@ -319,10 +324,10 @@ PinWaveCyclicAllocatorFraming(
     CPortPinWaveCyclic *Pin;
     PSUBDEVICE_DESCRIPTOR Descriptor;
 
-    // get sub device descriptor 
+    // get sub device descriptor
     Descriptor = (PSUBDEVICE_DESCRIPTOR)KSEVENT_ITEM_IRP_STORAGE(Irp);
 
-    // sanity check 
+    // sanity check
     PC_ASSERT(Descriptor);
     PC_ASSERT(Descriptor->PortPin);
     PC_ASSERT_IRQL(DISPATCH_LEVEL);
@@ -355,10 +360,10 @@ PinWaveCyclicAudioPosition(
     PSUBDEVICE_DESCRIPTOR Descriptor;
     PKSAUDIO_POSITION Position;
 
-    // get sub device descriptor 
+    // get sub device descriptor
     Descriptor = (PSUBDEVICE_DESCRIPTOR)KSPROPERTY_ITEM_IRP_STORAGE(Irp);
 
-    // sanity check 
+    // sanity check
     PC_ASSERT(Descriptor);
     PC_ASSERT(Descriptor->PortPin);
     PC_ASSERT_IRQL(DISPATCH_LEVEL);
@@ -460,10 +465,10 @@ PinWaveCyclicState(
     PSUBDEVICE_DESCRIPTOR Descriptor;
     PKSSTATE State = (PKSSTATE)Data;
 
-    // get sub device descriptor 
+    // get sub device descriptor
     Descriptor = (PSUBDEVICE_DESCRIPTOR)KSPROPERTY_ITEM_IRP_STORAGE(Irp);
 
-    // sanity check 
+    // sanity check
     PC_ASSERT(Descriptor);
     PC_ASSERT(Descriptor->PortPin);
     PC_ASSERT_IRQL(DISPATCH_LEVEL);
@@ -535,10 +540,10 @@ PinWaveCyclicDataFormat(
     // get current irp stack location
     IoStack = IoGetCurrentIrpStackLocation(Irp);
 
-    // get sub device descriptor 
+    // get sub device descriptor
     Descriptor = (PSUBDEVICE_DESCRIPTOR)KSPROPERTY_ITEM_IRP_STORAGE(Irp);
 
-    // sanity check 
+    // sanity check
     PC_ASSERT(Descriptor);
     PC_ASSERT(Descriptor->PortPin);
 
@@ -1300,7 +1305,7 @@ CPortPinWaveCyclic::Init(
     m_Stream->SetState(KSSTATE_STOP);
     m_State = KSSTATE_STOP;
     m_CommonBufferOffset = 0;
-    m_CommonBufferSize = m_DmaChannel->AllocatedBufferSize();
+    m_CommonBufferSize = m_DmaChannel->BufferSize();
     m_CommonBuffer = m_DmaChannel->SystemAddress();
     m_Capture = Capture;
     // delay of 10 millisec

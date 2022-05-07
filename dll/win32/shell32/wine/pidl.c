@@ -1101,8 +1101,13 @@ LPITEMIDLIST WINAPI SHSimpleIDListFromPathA(LPCSTR lpszPath)
         MultiByteToWideChar(CP_ACP, 0, lpszPath, -1, wPath, len);
     }
 #ifdef __REACTOS__
+    // FIXME: Needs folder attribute
     if (PathFileExistsW(wPath))
-        return ILCreateFromPathW(wPath);
+    {
+        pidl = ILCreateFromPathW(wPath);
+        HeapFree(GetProcessHeap(), 0, wPath);
+        return pidl;
+    }
 #endif
 
     _ILParsePathW(wPath, NULL, TRUE, &pidl, NULL);
@@ -1118,6 +1123,7 @@ LPITEMIDLIST WINAPI SHSimpleIDListFromPathW(LPCWSTR lpszPath)
 
     TRACE("%s\n", debugstr_w(lpszPath));
 #ifdef __REACTOS__
+    // FIXME: Needs folder attribute
     if (PathFileExistsW(lpszPath))
         return ILCreateFromPathW(lpszPath);
 #endif
@@ -1908,6 +1914,17 @@ BOOL _ILIsNetHood(LPCITEMIDLIST pidl)
 
     if (iid)
         return IsEqualIID(iid, &CLSID_NetworkPlaces);
+    return FALSE;
+}
+
+BOOL _ILIsControlPanel(LPCITEMIDLIST pidl)
+{
+    IID *iid = _ILGetGUIDPointer(pidl);
+
+    TRACE("(%p)\n", pidl);
+
+    if (iid)
+        return IsEqualIID(iid, &CLSID_ControlPanel);
     return FALSE;
 }
 

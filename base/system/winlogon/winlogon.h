@@ -133,7 +133,7 @@ typedef struct _GINAINSTANCE
  * about the Winlogon states is a little too simple.
  *
  * The real picture should look more like this:
- * 
+ *
  * STATE_INIT
  *    Initial state. Required for session initialization. After initialization,
  *    the state will automatically change to STATE_LOGGED_OFF.
@@ -320,6 +320,41 @@ InitializeScreenSaver(IN OUT PWLSESSION Session);
 VOID
 StartScreenSaver(IN PWLSESSION Session);
 
+/* security.c */
+PSECURITY_DESCRIPTOR
+ConvertToSelfRelative(
+    _In_ PSECURITY_DESCRIPTOR AbsoluteSd);
+
+BOOL
+CreateWinstaSecurity(
+    _Out_ PSECURITY_DESCRIPTOR *WinstaSd);
+
+BOOL
+CreateApplicationDesktopSecurity(
+    _Out_ PSECURITY_DESCRIPTOR *ApplicationDesktopSd);
+
+BOOL
+CreateWinlogonDesktopSecurity(
+    _Out_ PSECURITY_DESCRIPTOR *WinlogonDesktopSd);
+
+BOOL
+CreateScreenSaverSecurity(
+    _Out_ PSECURITY_DESCRIPTOR *ScreenSaverDesktopSd);
+
+BOOL
+AllowWinstaAccessToUser(
+    _In_ HWINSTA WinSta,
+    _In_ PSID LogonSid);
+
+BOOL
+AllowDesktopAccessToUser(
+    _In_ HDESK Desktop,
+    _In_ PSID LogonSid);
+
+BOOL
+AllowAccessOnSession(
+    _In_ PWLSESSION Session);
+
 /* setup.c */
 DWORD
 GetSetupType(VOID);
@@ -327,17 +362,17 @@ GetSetupType(VOID);
 BOOL
 RunSetup(VOID);
 
-/* shutdown.h*/
+/* shutdown.h */
 DWORD
 TerminateSystemShutdown(VOID);
 
 DWORD
 StartSystemShutdown(
-    PUNICODE_STRING lpMessage,
-    ULONG dwTimeout,
-    BOOLEAN bForceAppsClosed,
-    BOOLEAN bRebootAfterShutdown,
-    ULONG dwReason);
+    IN PUNICODE_STRING pMessage,
+    IN ULONG dwTimeout,
+    IN BOOLEAN bForceAppsClosed,
+    IN BOOLEAN bRebootAfterShutdown,
+    IN ULONG dwReason);
 
 /* winlogon.c */
 BOOL
@@ -364,12 +399,8 @@ BOOL
 GinaInit(IN OUT PWLSESSION Session);
 
 BOOL
-AddAceToWindowStation(
-    IN HWINSTA WinSta,
-    IN PSID Sid);
-
-BOOL
-CreateWindowStationAndDesktops(IN OUT PWLSESSION Session);
+CreateWindowStationAndDesktops(
+    _Inout_ PWLSESSION Session);
 
 
 VOID WINAPI WlxUseCtrlAltDel(HANDLE hWlx);

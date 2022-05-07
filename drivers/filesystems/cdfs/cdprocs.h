@@ -55,6 +55,14 @@ Abstract:
 #pragma warning( pop )
 #endif
 
+#ifdef __REACTOS__
+// Downgrade unsupported NT6.2+ features.
+#undef MdlMappingNoExecute
+#define MdlMappingNoExecute 0
+#define NonPagedPoolNx NonPagedPool
+#define NonPagedPoolNxCacheAligned NonPagedPoolCacheAligned
+#endif
+
 //**** x86 compiler bug ****
 
 #if defined(_M_IX86)
@@ -137,7 +145,7 @@ Abstract:
                           DELETE                            |   \
                           WRITE_DAC ))
 
-
+
 //
 //  Allocation support routines, implemented in AllocSup.c
 //
@@ -195,7 +203,7 @@ CdUninitializeMcb (
     _Inout_updates_bytes_(Fcb->NodeByteSize) PFCB Fcb
     );
 
-
+
 //
 //   Buffer control routines for data caching, implemented in CacheSup.c
 //
@@ -239,12 +247,12 @@ CdVerifyOrCreateDirStreamFile (
     //
     //  Unsafe test to see if call / lock neccessary.
     //
-    
+
     if (NULL == Fcb->FileObject) {
-        
+
         CdCreateInternalStream( IrpContext,
                                 Fcb->Vcb,
-                                Fcb, 
+                                Fcb,
                                 &Fcb->FileNamePrefix.ExactCaseName.FileName);
     }
 }
@@ -261,7 +269,7 @@ CdVerifyOrCreateDirStreamFile (
 #define CdUnpinData(IC,B)   \
     if (*(B) != NULL) { CcUnpinData( *(B) ); *(B) = NULL; }
 
-
+
 //
 //  Device I/O routines, implemented in DevIoSup.c
 //
@@ -372,7 +380,6 @@ CdHijackIrpAndFlushDevice (
 //      );
 //
 
-#ifndef __REACTOS__
 #define CdMapUserBuffer(IC, UB) {                                               \
             *(UB) = (PVOID) ( ((IC)->Irp->MdlAddress == NULL) ?                 \
                     (IC)->Irp->UserBuffer :                                     \
@@ -380,19 +387,7 @@ CdHijackIrpAndFlushDevice (
             if (NULL == *(UB))  {                         \
                 CdRaiseStatus( (IC), STATUS_INSUFFICIENT_RESOURCES);            \
             }                                                                   \
-        }                                                                       
-        
-#else
-#define CdMapUserBuffer(IC, UB) {                                               \
-            *(UB) = (PVOID) ( ((IC)->Irp->MdlAddress == NULL) ?                 \
-                    (IC)->Irp->UserBuffer :                                     \
-                    (MmGetSystemAddressForMdlSafe( (IC)->Irp->MdlAddress, NormalPagePriority)));   \
-            if (NULL == *(UB))  {                         \
-                CdRaiseStatus( (IC), STATUS_INSUFFICIENT_RESOURCES);            \
-            }                                                                   \
-        }                                                                       
-        
-#endif
+        }
 
 
 #define CdLockUserBuffer(IC,BL,OP) {                        \
@@ -401,7 +396,7 @@ CdHijackIrpAndFlushDevice (
     }                                                       \
 }
 
-
+
 //
 //  Dirent support routines, implemented in DirSup.c
 //
@@ -422,7 +417,7 @@ CdLookupNextDirent (
     _Inout_ PDIRENT_ENUM_CONTEXT NextDirContext
     );
 
-_At_(Dirent->CdTime, _Post_notnull_)
+_At_(Dirent->CdTime, _Post_notnull_)
 VOID
 CdUpdateDirentFromRawDirent (
     _In_ PIRP_CONTEXT IrpContext,
@@ -563,7 +558,7 @@ CdCleanupFileContext (
                                  &(FC)->InitialDirent->DirContext,  \
                                  &(FC)->InitialDirent->Dirent )
 
-
+
 //
 //  The following routines are used to manipulate the fscontext fields
 //  of the file object, implemented in FilObSup.c
@@ -614,7 +609,7 @@ CdFastDecodeFileObject (
     _Out_ PFCB *Fcb
     );
 
-
+
 //
 //  Name support routines, implemented in NameSup.c
 //
@@ -692,7 +687,7 @@ CdFullCompareNames (
     _In_ PUNICODE_STRING NameB
     );
 
-
+
 //
 //  Filesystem control operations.  Implemented in Fsctrl.c
 //
@@ -713,7 +708,7 @@ CdUnlockVolumeInternal (
     _In_opt_ PFILE_OBJECT FileObject
     );
 
-
+
 //
 //  Path table enumeration routines.  Implemented in PathSup.c
 //
@@ -734,7 +729,7 @@ CdLookupNextPathEntry (
     _Inout_ PPATH_ENTRY PathEntry
     );
 
-_Success_(return != FALSE)
+_Success_(return != FALSE)
 BOOLEAN
 CdFindPathEntry (
     _In_ PIRP_CONTEXT IrpContext,
@@ -778,7 +773,7 @@ CdUpdatePathEntryName (
     }                                                                           \
 }
 
-
+
 //
 //  Largest matching prefix searching routines, implemented in PrefxSup.c
 //
@@ -808,7 +803,7 @@ CdFindPrefix (
     _In_ BOOLEAN IgnoreCase
     );
 
-
+
 //
 //  Synchronization routines.  Implemented in Resrcsup.c
 //
@@ -830,7 +825,7 @@ CdFindPrefix (
 //
 
 typedef enum _TYPE_OF_ACQUIRE {
-    
+
     AcquireExclusive,
     AcquireShared,
     AcquireSharedStarveExclusive
@@ -965,10 +960,10 @@ CdAcquireResource (
 
 #define CdAcquireCacheForRead( IC)                                                      \
     ExAcquireResourceSharedLite( &(IC)->Vcb->SectorCacheResource, TRUE)
-    
+
 #define CdAcquireCacheForUpdate( IC)                                                    \
     ExAcquireResourceExclusiveLite( &(IC)->Vcb->SectorCacheResource, TRUE)
-    
+
 #define CdReleaseCache( IC)                                                             \
     ExReleaseResourceLite( &(IC)->Vcb->SectorCacheResource);
 
@@ -1137,7 +1132,7 @@ CdReleaseForCreateSection (
     _In_ PFILE_OBJECT FileObject
     );
 
-
+
 //
 //  In-memory structure support routines.  Implemented in StrucSup.c
 //
@@ -1383,13 +1378,8 @@ CdProcessToc (
 //
 
 #define CdPagedPool                 PagedPool
-#ifndef __REACTOS__
 #define CdNonPagedPool              NonPagedPoolNx
 #define CdNonPagedPoolCacheAligned  NonPagedPoolNxCacheAligned
-#else
-#define CdNonPagedPool              NonPagedPool
-#define CdNonPagedPoolCacheAligned  NonPagedPoolCacheAligned
-#endif
 
 
 //
@@ -1404,7 +1394,7 @@ CdOperationIsDasdOpen (
     )
 {
     PIO_STACK_LOCATION IrpSp = IoGetCurrentIrpStackLocation( IrpContext->Irp);
-    
+
     return ((IrpContext->MajorFunction == IRP_MJ_CREATE) &&
             (IrpSp->FileObject->FileName.Length == 0) &&
             (IrpSp->FileObject->RelatedFileObject == NULL));
@@ -1459,7 +1449,7 @@ CdDismountVcb (
 #define CdUpdateVcbCondition( V, C)      (V)->VcbCondition = (C)
 
 #define CdMarkRealDevForVerify( DO)  SetFlag( (DO)->Flags, DO_VERIFY_VOLUME)
-                                     
+
 #define CdMarkRealDevVerifyOk( DO)   ClearFlag( (DO)->Flags, DO_VERIFY_VOLUME)
 
 
@@ -1478,7 +1468,7 @@ CdDismountVcb (
     ((S) == STATUS_NO_MEDIA_IN_DEVICE)  \
 )
 
-
+
 //
 //  Work queue routines for posting and retrieving an Irp, implemented in
 //  workque.c
@@ -1507,7 +1497,7 @@ CdOplockComplete (
     _Inout_ PIRP Irp
     );
 
-
+
 //
 //  Miscellaneous support routines
 //
@@ -1614,7 +1604,7 @@ CdOplockComplete (
 static /* ReactOS Change: GCC "multiple definition" */
 INLINE
 ULONG
-SectorsFromLlBytes( 
+SectorsFromLlBytes(
     ULONGLONG Bytes
 ) {
 
@@ -2035,7 +2025,7 @@ CdSerial32 (
         FastIoIsPossible))                                                          \
 )
 
-
+
 //
 //  The FSP level dispatch/main routine.  This is the routine that takes
 //  IRP's off of the work queue and calls the appropriate FSP level
@@ -2156,7 +2146,7 @@ CdCommonShutdown (                         //  Implemented in Shutdown.c
     );
 
 
-
+
 //
 //  The following macros are used to establish the semantics needed
 //  to do a return from within a try-finally clause.  As a rule every

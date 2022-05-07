@@ -216,6 +216,8 @@ interface IShellFolder : IUnknown
     cpp_quote("#define SFGAO_NEWCONTENT        0x00200000L")
     cpp_quote("#define SFGAO_STREAM            0x00400000L")
     cpp_quote("#define SFGAO_STORAGEANCESTOR   0x00800000L")
+    cpp_quote("#define SFGAO_STORAGECAPMASK    0x70C50008L")
+    cpp_quote("#define SFGAO_PKEYSFGAOMASK     0x81044000L")
 
     typedef ULONG SFGAOF;
 
@@ -4766,6 +4768,42 @@ interface IItemNameLimits : IUnknown
     HRESULT GetMaxLength(
         [in, string] LPCWSTR pszName,
         [out] int *piMaxNameLen);
+};
+
+/*****************************************************************************
+ * IUserAssist interface
+ */
+[
+    uuid(dd313e05-feff-11d1-8ecd-0000f87a470c),
+    object,
+    local,
+    pointer_default(unique)
+]
+interface IUserAssist : IUnknown
+{
+    HRESULT FireEvent(
+        GUID const *guid,
+        INT param1,
+        ULONG param2,
+        WPARAM wparam,
+        LPARAM lparam);
+
+    HRESULT QueryEvent(
+        GUID const *guid,
+        INT param,
+        WPARAM wparam,
+        LPARAM lparam,
+        PVOID ptr);
+
+    HRESULT SetEvent(
+        GUID const *guid,
+        INT param,
+        WPARAM wparam,
+        LPARAM lparam,
+        PVOID ptr);
+
+    HRESULT Enable(
+        BOOL bEnable);
 };
 
 #endif // __REACTOS__

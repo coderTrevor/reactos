@@ -5,9 +5,12 @@
  * PURPOSE:         Internal header for the Configuration Manager
  * PROGRAMMERS:     Alex Ionescu (alex.ionescu@reactos.org)
  */
-#define _CM_
-#include "cmlib.h"
+
+#pragma once
+
+#include <cmlib.h>
 #include <cmreslist.h>
+#include "cmboot.h"
 
 //
 // Define this if you want debugging support
@@ -695,7 +698,7 @@ CmpFlushNotify(
     IN BOOLEAN LockHeld
 );
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 CmpInitCallback(
@@ -705,28 +708,28 @@ CmpInitCallback(
 //
 // KCB Cache/Delay Routines
 //
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 CmpInitializeCache(
     VOID
 );
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 CmpInitCmPrivateDelayAlloc(
     VOID
 );
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 CmpInitCmPrivateAlloc(
     VOID
 );
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 CmpInitDelayDerefKCBEngine(
@@ -969,7 +972,7 @@ VOID
 NTAPI
 CmpRemoveFromDelayedClose(IN PCM_KEY_CONTROL_BLOCK Kcb);
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 CmpInitializeDelayedCloseTable(
@@ -1168,17 +1171,7 @@ CmpCreateLinkNode(
 //
 // Boot Routines
 //
-INIT_FUNCTION
-HCELL_INDEX
-NTAPI
-CmpFindControlSet(
-    IN PHHIVE SystemHive,
-    IN HCELL_INDEX RootCell,
-    IN PUNICODE_STRING SelectKeyName,
-    OUT PBOOLEAN AutoSelect
-);
-
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 CmGetSystemControlValues(
@@ -1195,7 +1188,7 @@ CmpSaveBootControlSet(
 //
 // Hardware Configuration Routines
 //
-INIT_FUNCTION
+CODE_SEG("INIT")
 NTSTATUS
 NTAPI
 CmpInitializeRegistryNode(
@@ -1213,7 +1206,7 @@ CmpInitializeMachineDependentConfiguration(
     IN PLOADER_PARAMETER_BLOCK LoaderBlock
 );
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 NTSTATUS
 NTAPI
 CmpInitializeHardwareConfiguration(
@@ -1418,7 +1411,7 @@ CmSaveMergedKeys(
 //
 // Startup and Shutdown
 //
-INIT_FUNCTION
+CODE_SEG("INIT")
 BOOLEAN
 NTAPI
 CmInitSystem1(
@@ -1446,47 +1439,12 @@ CmpSetVersionData(
 //
 // Driver List Routines
 //
-INIT_FUNCTION
+CODE_SEG("INIT")
 PUNICODE_STRING*
 NTAPI
 CmGetSystemDriverList(
     VOID
 );
-
-INIT_FUNCTION
-BOOLEAN
-NTAPI
-CmpFindDrivers(
-    IN PHHIVE Hive,
-    IN HCELL_INDEX ControlSet,
-    IN SERVICE_LOAD_TYPE LoadType,
-    IN PWSTR BootFileSystem OPTIONAL,
-    IN PLIST_ENTRY DriverListHead
-);
-
-INIT_FUNCTION
-BOOLEAN
-NTAPI
-CmpSortDriverList(
-    IN PHHIVE Hive,
-    IN HCELL_INDEX ControlSet,
-    IN PLIST_ENTRY DriverListHead
-);
-
-INIT_FUNCTION
-BOOLEAN
-NTAPI
-CmpResolveDriverDependencies(
-    IN PLIST_ENTRY DriverListHead
-);
-
-INIT_FUNCTION
-BOOLEAN
-NTAPI
-CmpIsSafe(
-    IN PHHIVE Hive,
-    IN HCELL_INDEX SafeBootCell,
-    IN HCELL_INDEX DriverCell);
 
 //
 // Global variables accessible from all of Cm

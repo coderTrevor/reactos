@@ -150,20 +150,20 @@ RtlFreeLargeString(
 
 DWORD
 FASTCALL
-RtlGetExpWinVer( HMODULE hModule )
+RtlGetExpWinVer(HMODULE hModule)
 {
     DWORD dwMajorVersion = 3;  // Set default to Windows 3.10.
     DWORD dwMinorVersion = 10;
     PIMAGE_NT_HEADERS pinth;
 
-    if ( hModule && !((ULONG_PTR)hModule >> 16))
+    if (hModule && !LOWORD((ULONG_PTR)hModule))
     {
-        pinth = RtlImageNtHeader( hModule );
-        if ( pinth )
+        pinth = RtlImageNtHeader(hModule);
+        if (pinth)
         {
             dwMajorVersion = pinth->OptionalHeader.MajorSubsystemVersion;
 
-            if ( dwMajorVersion == 1 )
+            if (dwMajorVersion == 1)
             {
                 dwMajorVersion = 3;
             }
@@ -645,7 +645,7 @@ DeferWindowPos(HDWP hWinPosInfo,
 BOOL WINAPI
 EndDeferWindowPos(HDWP hWinPosInfo)
 {
-    return NtUserEndDeferWindowPosEx(hWinPosInfo, 0);
+    return NtUserEndDeferWindowPosEx(hWinPosInfo, FALSE);
 }
 
 
@@ -701,7 +701,7 @@ User32EnumWindows(HDESK hDesktop,
                                  hWndparent,
                                  bChildren,
                                  dwThreadId,
-                                 lParam,
+                                 dwCount,
                                  NULL,
                                  &dwCount);
     if (!NT_SUCCESS(Status))
@@ -729,7 +729,7 @@ User32EnumWindows(HDESK hDesktop,
                                  hWndparent,
                                  bChildren,
                                  dwThreadId,
-                                 lParam,
+                                 dwCount,
                                  pHwnd,
                                  &dwCount);
     if (!NT_SUCCESS(Status))
@@ -1875,22 +1875,7 @@ InternalGetWindowText(HWND hWnd, LPWSTR lpString, int nMaxCount)
 BOOL WINAPI
 IsHungAppWindow(HWND hwnd)
 {
-    PWND Window;
-    UNICODE_STRING ClassName;
-    WCHAR szClass[16];
-    static const UNICODE_STRING GhostClass = RTL_CONSTANT_STRING(L"Ghost");
-
-    /* Ghost is a hung window */
-    RtlInitEmptyUnicodeString(&ClassName, szClass, sizeof(szClass));
-    Window = ValidateHwnd(hwnd);
-    if (Window && Window->fnid == FNID_GHOST &&
-        NtUserGetClassName(hwnd, FALSE, &ClassName) &&
-        RtlEqualUnicodeString(&ClassName, &GhostClass, TRUE))
-    {
-        return TRUE;
-    }
-
-    return (NtUserQueryWindow(hwnd, QUERY_WINDOW_ISHUNG) != 0);
+    return !!NtUserQueryWindow(hwnd, QUERY_WINDOW_ISHUNG);
 }
 
 /*
@@ -1990,7 +1975,7 @@ ScrollWindowEx(HWND hWnd,
 {
     if (flags & SW_SMOOTHSCROLL)
     {
-       FIXME("SW_SMOOTHSCROLL not supported.");
+       FIXME("SW_SMOOTHSCROLL not supported.\n");
        // Fall through....
     }
     return NtUserScrollWindowEx(hWnd,

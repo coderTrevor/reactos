@@ -22,6 +22,8 @@
 #define PEGC_FRAMEBUFFER_PACKED  0xF00000
 #define PEGC_FRAMEBUFFER_SIZE    0x080000
 
+#define PEGC_CONTROL_SIZE        0x000200
+
 /* High-resolution machine */
 #define VRAM_HI_RESO_PLANE_B     0xC0000
 #define VRAM_HI_RESO_PLANE_G     0xC8000
@@ -183,10 +185,10 @@ FORCEINLINE
 VOID
 WRITE_GDC_CSRFORM(PUCHAR Port, PCSRFORMPARAM CursorParameters)
 {
-    WRITE_PORT_UCHAR(Port, ((CursorParameters->Show & 0x01) << 7) |
+    WRITE_PORT_UCHAR(Port, (((_Bool)CursorParameters->Show) << 7) |
                      (CursorParameters->LinesPerRow - 1));
     WRITE_PORT_UCHAR(Port, ((CursorParameters->BlinkRate & 0x03) << 6) |
-                     ((!CursorParameters->Blink & 0x01) << 5) | CursorParameters->StartScanLine);
+                     (((_Bool)!CursorParameters->Blink) << 5) | CursorParameters->StartScanLine);
     WRITE_PORT_UCHAR(Port, (CursorParameters->EndScanLine << 3) | ((CursorParameters->BlinkRate & 0x1C) >> 2));
 }
 
@@ -351,6 +353,8 @@ WRITE_GDC2_COMMAND(UCHAR Command)
 
 #define GRAPH_IO_i_DPMS                   0x9A2
 #define GRAPH_IO_o_DPMS                   0x9A2
+    #define GRAPH_DPMS_HSYNC_MASK              0x40
+    #define GRAPH_DPMS_VSYNC_MASK              0x80
 
 #define GRAPH_IO_i_HORIZONTAL_SCAN_RATE   0x9A8
 #define GRAPH_IO_o_HORIZONTAL_SCAN_RATE   0x9A8

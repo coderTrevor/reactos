@@ -273,6 +273,10 @@ GetComputerIdentifier(
         return FALSE;
     }
 
+#ifdef _M_AMD64
+    /* On x64 we are l33t and use the MP config by default */
+    ComputerIdentifier = L"X64 MP";
+#else
     if (IsAcpiComputer())
     {
         if (pFullInfo->SubKeys == 1)
@@ -299,6 +303,7 @@ GetComputerIdentifier(
             ComputerIdentifier = L"PC MP";
         }
     }
+#endif
 
     RtlFreeHeap(RtlGetProcessHeap(), 0, pFullInfo);
 
@@ -889,6 +894,17 @@ ProcessDisplayRegistry(
     Status = NtOpenKey(&KeyHandle,
                        KEY_SET_VALUE,
                        &ObjectAttributes);
+    if (Status == STATUS_OBJECT_NAME_NOT_FOUND)
+    {
+        /* Try without Hardware Profile part */
+        RtlStringCchPrintfW(RegPath, ARRAYSIZE(RegPath),
+                            L"System\\CurrentControlSet\\Services\\%s\\Device0",
+                            ServiceName);
+        RtlInitUnicodeString(&KeyName, RegPath);
+        Status = NtOpenKey(&KeyHandle,
+                           KEY_SET_VALUE,
+                           &ObjectAttributes);
+    }
     if (!NT_SUCCESS(Status))
     {
         DPRINT1("NtOpenKey() failed (Status %lx)\n", Status);

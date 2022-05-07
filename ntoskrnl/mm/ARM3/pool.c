@@ -24,6 +24,8 @@ PFN_NUMBER MiStartOfInitialPoolFrame, MiEndOfInitialPoolFrame;
 KGUARDED_MUTEX MmPagedPoolMutex;
 MM_PAGED_POOL_INFO MmPagedPoolInfo;
 SIZE_T MmAllocatedNonPagedPool;
+SIZE_T MmTotalNonPagedPoolQuota;
+SIZE_T MmTotalPagedPoolQuota;
 ULONG MmSpecialPoolTag;
 ULONG MmConsumedPoolPercentage;
 BOOLEAN MmProtectFreedNonPagedPool;
@@ -178,7 +180,7 @@ MiProtectedPoolRemoveEntryList(IN PLIST_ENTRY Entry)
     if (PoolBlink) MiProtectFreeNonPagedPool(PoolBlink, 1);
 }
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 MiInitializeNonPagedPoolThresholds(VOID)
@@ -195,7 +197,7 @@ MiInitializeNonPagedPoolThresholds(VOID)
     ASSERT(MiLowNonPagedPoolThreshold < MiHighNonPagedPoolThreshold);
 }
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 MiInitializePoolEvents(VOID)
@@ -270,7 +272,7 @@ MiInitializePoolEvents(VOID)
     KeReleaseQueuedSpinLock(LockQueueMmNonPagedPoolLock, OldIrql);
 }
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 VOID
 NTAPI
 MiInitializeNonPagedPool(VOID)
@@ -680,8 +682,7 @@ MiAllocatePoolPages(IN POOL_TYPE PoolType,
     //
     // Allocations of less than 4 pages go into their individual buckets
     //
-    i = SizeInPages - 1;
-    if (i >= MI_MAX_FREE_PAGE_LISTS) i = MI_MAX_FREE_PAGE_LISTS - 1;
+    i = min(SizeInPages, MI_MAX_FREE_PAGE_LISTS) - 1;
 
     //
     // Loop through all the free page lists based on the page index
@@ -738,8 +739,7 @@ MiAllocatePoolPages(IN POOL_TYPE PoolType,
                 if (FreeEntry->Size != 0)
                 {
                     /* Check which list to insert this entry into */
-                    i = FreeEntry->Size - 1;
-                    if (i >= MI_MAX_FREE_PAGE_LISTS) i = MI_MAX_FREE_PAGE_LISTS - 1;
+                    i = min(FreeEntry->Size, MI_MAX_FREE_PAGE_LISTS) - 1;
 
                     /* Insert the entry into the free list head, check for prot. pool */
                     if (MmProtectFreedNonPagedPool)
@@ -835,7 +835,7 @@ MiAllocatePoolPages(IN POOL_TYPE PoolType,
         //
         // Ran out of memory
         //
-        DPRINT1("Out of NP Expansion Pool\n");
+        DPRINT("Out of NP Expansion Pool\n");
         return NULL;
     }
 
@@ -848,6 +848,19 @@ MiAllocatePoolPages(IN POOL_TYPE PoolType,
     // Lock the PFN database too
     //
     MiAcquirePfnLockAtDpcLevel();
+
+    /* Check that we have enough available pages for this request */
+    if (MmAvailablePages < SizeInPages)
+    {
+        MiReleasePfnLockFromDpcLevel();
+        KeReleaseQueuedSpinLock(LockQueueMmNonPagedPoolLock, OldIrql);
+
+        MiReleaseSystemPtes(StartPte, SizeInPages, NonPagedPoolExpansion);
+
+        DPRINT1("OUT OF AVAILABLE PAGES! Required %lu, Available %lu\n", SizeInPages, MmAvailablePages);
+
+        return NULL;
+    }
 
     //
     // Loop the pages
@@ -1163,11 +1176,11 @@ MiFreePoolPages(IN PVOID StartingVa)
         }
 
         //
-        // Check if the entry is small enough to be indexed on a free list
+        // Check if the entry is small enough (1-3 pages) to be indexed on a free list
         // If it is, we'll want to re-insert it, since we're about to
         // collapse our pages on top of it, which will change its count
         //
-        if (FreeEntry->Size < (MI_MAX_FREE_PAGE_LISTS - 1))
+        if (FreeEntry->Size < MI_MAX_FREE_PAGE_LISTS)
         {
             /* Remove the item from the list, depending if pool is protected */
             if (MmProtectFreedNonPagedPool)
@@ -1183,8 +1196,7 @@ MiFreePoolPages(IN PVOID StartingVa)
             //
             // And now find the new appropriate list to place it in
             //
-            i = (ULONG)(FreeEntry->Size - 1);
-            if (i >= MI_MAX_FREE_PAGE_LISTS) i = MI_MAX_FREE_PAGE_LISTS - 1;
+            i = min(FreeEntry->Size, MI_MAX_FREE_PAGE_LISTS) - 1;
 
             /* Insert the entry into the free list head, check for prot. pool */
             if (MmProtectFreedNonPagedPool)
@@ -1215,8 +1227,7 @@ MiFreePoolPages(IN PVOID StartingVa)
         //
         // Find the appropriate list we should be on
         //
-        i = FreeEntry->Size - 1;
-        if (i >= MI_MAX_FREE_PAGE_LISTS) i = MI_MAX_FREE_PAGE_LISTS - 1;
+        i = min(FreeEntry->Size, MI_MAX_FREE_PAGE_LISTS) - 1;
 
         /* Insert the entry into the free list head, check for prot. pool */
         if (MmProtectFreedNonPagedPool)
@@ -1258,21 +1269,6 @@ MiFreePoolPages(IN PVOID StartingVa)
     //
     KeReleaseQueuedSpinLock(LockQueueMmNonPagedPoolLock, OldIrql);
     return NumberOfPages;
-}
-
-
-BOOLEAN
-NTAPI
-MiRaisePoolQuota(IN POOL_TYPE PoolType,
-                 IN ULONG CurrentMaxQuota,
-                 OUT PULONG NewMaxQuota)
-{
-    //
-    // Not implemented
-    //
-    UNIMPLEMENTED;
-    *NewMaxQuota = CurrentMaxQuota + 65536;
-    return TRUE;
 }
 
 NTSTATUS
@@ -1377,6 +1373,181 @@ MiInitializeSessionPool(VOID)
     /* Clear all the bits and return success */
     RtlClearAllBits(PagedPoolInfo->EndOfPagedPoolBitmap);
     return STATUS_SUCCESS;
+}
+
+/**
+ * @brief
+ * Raises the quota limit, depending on the given
+ * pool type of the quota in question. The routine
+ * is used exclusively by Process Manager for
+ * quota handling.
+ *
+ * @param[in] PoolType
+ * The type of quota pool which the quota in question
+ * has to be raised.
+ *
+ * @param[in] CurrentMaxQuota
+ * The current maximum limit of quota threshold.
+ *
+ * @param[out] NewMaxQuota
+ * The newly raised maximum limit of quota threshold,
+ * returned to the caller.
+ *
+ * @return
+ * Returns TRUE if quota raising procedure has succeeded
+ * without problems, FALSE otherwise.
+ *
+ * @remarks
+ * A spin lock must be held when raising the pool quota
+ * limit to avoid race occurences.
+ */
+_Requires_lock_held_(PspQuotaLock)
+BOOLEAN
+NTAPI
+MmRaisePoolQuota(
+    _In_ POOL_TYPE PoolType,
+    _In_ SIZE_T CurrentMaxQuota,
+    _Out_ PSIZE_T NewMaxQuota)
+{
+    /*
+     * We must be in dispatch level interrupt here
+     * as we should be under a spin lock at this point.
+     */
+    ASSERT_IRQL_EQUAL(DISPATCH_LEVEL);
+
+    switch (PoolType)
+    {
+        case NonPagedPool:
+        {
+            /*
+             * When concerning with a raise (charge) of quota
+             * in a non paged pool scenario, make sure that
+             * we've got at least 200 pages necessary to provide.
+             */
+            if (MmAvailablePages < MI_QUOTA_NON_PAGED_NEEDED_PAGES)
+            {
+                DPRINT1("MmRaisePoolQuota(): Not enough pages available (current pages -- %lu)\n", MmAvailablePages);
+                return FALSE;
+            }
+
+            /*
+             * Check if there's at least some space available
+             * in the non paged pool area.
+             */
+            if (MmMaximumNonPagedPoolInPages < (MmAllocatedNonPagedPool >> PAGE_SHIFT))
+            {
+                /* There's too much allocated space, bail out */
+                DPRINT1("MmRaisePoolQuota(): Failed to increase pool quota, not enough non paged pool space (current size -- %lu || allocated size -- %lu)\n",
+                        MmMaximumNonPagedPoolInPages, MmAllocatedNonPagedPool);
+                return FALSE;
+            }
+
+            /* Do we have enough resident pages to increase our quota? */
+            if (MmResidentAvailablePages < MI_NON_PAGED_QUOTA_MIN_RESIDENT_PAGES)
+            {
+                DPRINT1("MmRaisePoolQuota(): Failed to increase pool quota, not enough resident pages available (current available pages -- %lu)\n",
+                        MmResidentAvailablePages);
+                return FALSE;
+            }
+
+            /*
+             * Raise the non paged pool quota indicator and set
+             * up new maximum limit of quota for the process.
+             */
+            MmTotalNonPagedPoolQuota += MI_CHARGE_NON_PAGED_POOL_QUOTA;
+            *NewMaxQuota = CurrentMaxQuota + MI_CHARGE_NON_PAGED_POOL_QUOTA;
+            DPRINT("MmRaisePoolQuota(): Non paged pool quota increased (before -- %lu || after -- %lu)\n", CurrentMaxQuota, NewMaxQuota);
+            return TRUE;
+        }
+
+        case PagedPool:
+        {
+            /*
+             * Before raising the quota limit of a paged quota
+             * pool, make sure we've got enough space that is available.
+             * On Windows it seems it wants to check for at least 1 MB of space
+             * needed so that it would be possible to raise the paged pool quota.
+             */
+            if (MmSizeOfPagedPoolInPages < (MmPagedPoolInfo.AllocatedPagedPool >> PAGE_SHIFT))
+            {
+                /* We haven't gotten enough space, bail out */
+                DPRINT1("MmRaisePoolQuota(): Failed to increase pool quota, not enough paged pool space (current size -- %lu || allocated size -- %lu)\n",
+                        MmSizeOfPagedPoolInPages, MmPagedPoolInfo.AllocatedPagedPool >> PAGE_SHIFT);
+                return FALSE;
+            }
+
+            /*
+             * Raise the paged pool quota indicator and set
+             * up new maximum limit of quota for the process.
+             */
+            MmTotalPagedPoolQuota += MI_CHARGE_PAGED_POOL_QUOTA;
+            *NewMaxQuota = CurrentMaxQuota + MI_CHARGE_PAGED_POOL_QUOTA;
+            DPRINT("MmRaisePoolQuota(): Paged pool quota increased (before -- %lu || after -- %lu)\n", CurrentMaxQuota, NewMaxQuota);
+            return TRUE;
+        }
+
+        /* Only NonPagedPool and PagedPool are used */
+        DEFAULT_UNREACHABLE;
+    }
+}
+
+/**
+ * @brief
+ * Returns the quota, depending on the given
+ * pool type of the quota in question. The routine
+ * is used exclusively by Process Manager for quota
+ * handling.
+ *
+ * @param[in] PoolType
+ * The type of quota pool which the quota in question
+ * has to be raised.
+ *
+ * @param[in] CurrentMaxQuota
+ * The current maximum limit of quota threshold.
+ *
+ * @return
+ * Nothing.
+ *
+ * @remarks
+ * A spin lock must be held when raising the pool quota
+ * limit to avoid race occurences.
+ */
+_Requires_lock_held_(PspQuotaLock)
+VOID
+NTAPI
+MmReturnPoolQuota(
+    _In_ POOL_TYPE PoolType,
+    _In_ SIZE_T QuotaToReturn)
+{
+    /*
+     * We must be in dispatch level interrupt here
+     * as we should be under a spin lock at this point.
+     */
+    ASSERT_IRQL_EQUAL(DISPATCH_LEVEL);
+
+    switch (PoolType)
+    {
+        case NonPagedPool:
+        {
+            /* This is a non paged pool type, decrease the non paged quota */
+            ASSERT(MmTotalNonPagedPoolQuota >= QuotaToReturn);
+            MmTotalNonPagedPoolQuota -= QuotaToReturn;
+            DPRINT("MmReturnPoolQuota(): Non paged pool quota returned (current size -- %lu)\n", MmTotalNonPagedPoolQuota);
+            break;
+        }
+
+        case PagedPool:
+        {
+            /* This is a paged pool type, decrease the paged quota */
+            ASSERT(MmTotalPagedPoolQuota >= QuotaToReturn);
+            MmTotalPagedPoolQuota -= QuotaToReturn;
+            DPRINT("MmReturnPoolQuota(): Paged pool quota returned (current size -- %lu)\n", MmTotalPagedPoolQuota);
+            break;
+        }
+
+        /* Only NonPagedPool and PagedPool are used */
+        DEFAULT_UNREACHABLE;
+    }
 }
 
 /* PUBLIC FUNCTIONS ***********************************************************/

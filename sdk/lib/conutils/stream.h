@@ -55,9 +55,15 @@ typedef enum _CON_STREAM_MODE
 // Shadow type, implementation-specific
 typedef struct _CON_STREAM CON_STREAM, *PCON_STREAM;
 
-// typedef INT (__stdcall *CON_READ_FUNC)(IN PCON_STREAM, IN PTCHAR, IN DWORD);
-                                        // Stream,         szStr,     len
-typedef INT (__stdcall *CON_WRITE_FUNC)(IN PCON_STREAM, IN PTCHAR, IN DWORD);
+// typedef INT (__stdcall *CON_READ_FUNC)(
+    // IN PCON_STREAM Stream,
+    // OUT PTCHAR szStr,
+    // IN OUT PDWORD len);
+
+typedef INT (__stdcall *CON_WRITE_FUNC)(
+    IN PCON_STREAM Stream,
+    IN PCTCH szStr,
+    IN DWORD len);
 
 /*
  * Standard console streams, initialized by
@@ -130,14 +136,27 @@ ConStreamSetMode(
     IN UINT CacheCodePage OPTIONAL);
 
 #ifdef USE_CRT
+
 // FIXME!
 #warning The ConStreamSetCacheCodePage function does not make much sense with the CRT!
+
+#define ConStdStreamsSetCacheCodePage(InputCodePage, OutputCodePage) NOTHING
+
 #else
+
 BOOL
 ConStreamSetCacheCodePage(
     IN PCON_STREAM Stream,
     IN UINT CacheCodePage);
-#endif
+
+#define ConStdStreamsSetCacheCodePage(InputCodePage, OutputCodePage) \
+do { \
+    ConStreamSetCacheCodePage(StdIn , (InputCodePage )); \
+    ConStreamSetCacheCodePage(StdOut, (OutputCodePage)); \
+    ConStreamSetCacheCodePage(StdErr, (OutputCodePage)); \
+} while(0)
+
+#endif /* defined(USE_CRT) */
 
 HANDLE
 ConStreamGetOSHandle(

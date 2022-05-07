@@ -25,6 +25,8 @@
 #include <pnp_c.h>
 #include <winsvc.h>
 
+#include <pseh/pseh2.h>
+
 #include "rpc_private.h"
 
 DWORD
@@ -35,7 +37,8 @@ I_ScPnPGetServiceName(IN SERVICE_STATUS_HANDLE hServiceStatus,
 
 
 /* Registry key and value names */
-static const WCHAR Backslash[] = {'\\', 0};
+static const WCHAR BackslashOpenBrace[] = {'\\', '{', 0};
+static const WCHAR CloseBrace[] = {'}', 0};
 static const WCHAR Class[]  = {'C','l','a','s','s',0};
 
 static const WCHAR ControlClass[] = {'S','y','s','t','e','m','\\',
@@ -71,7 +74,7 @@ typedef struct _LOG_CONF_INFO
 typedef struct _NOTIFY_DATA
 {
     ULONG ulMagic;
-    ULONG ulNotifyData;
+    PVOID hNotifyHandle;
 } NOTIFY_DATA, *PNOTIFY_DATA;
 
 #define NOTIFY_MAGIC 0x44556677
@@ -631,6 +634,7 @@ CMP_RegisterNotification(
         return CR_OUT_OF_MEMORY;
 
     pNotifyData->ulMagic = NOTIFY_MAGIC;
+    pNotifyData->hNotifyHandle = NULL;
 
     if ((ulFlags & DEVICE_NOTIFY_SERVICE_HANDLE) == DEVICE_NOTIFY_WINDOW_HANDLE)
     {
@@ -671,8 +675,8 @@ CMP_RegisterNotification(
                                        (BYTE*)lpvNotificationFilter,
                                        ((DEV_BROADCAST_HDR*)lpvNotificationFilter)->dbch_size,
                                        ulFlags,
-                                       &pNotifyData->ulNotifyData,
-                                       0,            /* ??? */
+                                       &pNotifyData->hNotifyHandle,
+                                       GetCurrentProcessId(),
                                        &ulUnknown9); /* ??? */
     }
     RpcExcept(EXCEPTION_EXECUTE_HANDLER)
@@ -683,11 +687,12 @@ CMP_RegisterNotification(
 
     if (ret == CR_SUCCESS)
     {
+        TRACE("hNotifyHandle: %p\n", pNotifyData->hNotifyHandle);
         *phDevNotify = (HDEVNOTIFY)pNotifyData;
     }
     else
     {
-        if (pNotifyData != NULL)
+        if (pNotifyData->hNotifyHandle == NULL)
             HeapFree(GetProcessHeap(), 0, pNotifyData);
 
         *phDevNotify = (HDEVNOTIFY)NULL;
@@ -771,7 +776,7 @@ CMP_UnregisterNotification(
     RpcTryExcept
     {
         ret = PNP_UnregisterNotification(BindingHandle,
-                                         pNotifyData->ulNotifyData);
+                                         &pNotifyData->hNotifyHandle);
     }
     RpcExcept(EXCEPTION_EXECUTE_HANDLER)
     {
@@ -780,7 +785,10 @@ CMP_UnregisterNotification(
     RpcEndExcept;
 
     if (ret == CR_SUCCESS)
+    {
+        pNotifyData->hNotifyHandle = NULL;
         HeapFree(GetProcessHeap(), 0, pNotifyData);
+    }
 
     return ret;
 }
@@ -2937,7 +2945,7 @@ CM_Get_Class_Registry_PropertyA(
         *pulLength = WideCharToMultiByte(CP_ACP,
                                          0,
                                          BufferW,
-                                         lstrlenW(BufferW) + 1,
+                                         ulLength,
                                          Buffer,
                                          *pulLength,
                                          NULL,
@@ -3859,7 +3867,7 @@ CM_Get_Device_ID_List_ExA(
     if (WideCharToMultiByte(CP_ACP,
                             0,
                             BufferW,
-                            lstrlenW(BufferW) + 1,
+                            BufferLen,
                             Buffer,
                             BufferLen,
                             NULL,
@@ -4344,7 +4352,7 @@ CM_Get_Device_Interface_List_ExA(
     if (WideCharToMultiByte(CP_ACP,
                             0,
                             BufferW,
-                            lstrlenW(BufferW) + 1,
+                            BufferLen,
                             Buffer,
                             BufferLen,
                             NULL,
@@ -5940,6 +5948,19 @@ CM_Locate_DevNode_ExW(
     if (pDeviceID != NULL && lstrlenW(pDeviceID) != 0)
     {
         lstrcpyW(DeviceIdBuffer, pDeviceID);
+
+        RpcTryExcept
+        {
+            /* Validate the device ID */
+            ret = PNP_ValidateDeviceInstance(BindingHandle,
+                                             DeviceIdBuffer,
+                                             ulFlags);
+        }
+        RpcExcept(EXCEPTION_EXECUTE_HANDLER)
+        {
+            ret = RpcStatusToCmStatus(RpcExceptionCode());
+        }
+        RpcEndExcept;
     }
     else
     {
@@ -5955,24 +5976,9 @@ CM_Locate_DevNode_ExW(
             ret = RpcStatusToCmStatus(RpcExceptionCode());
         }
         RpcEndExcept;
-
-        if (ret != CR_SUCCESS)
-            return CR_FAILURE;
     }
+
     TRACE("DeviceIdBuffer: %s\n", debugstr_w(DeviceIdBuffer));
-
-    RpcTryExcept
-    {
-        /* Validate the device ID */
-        ret = PNP_ValidateDeviceInstance(BindingHandle,
-                                         DeviceIdBuffer,
-                                         ulFlags);
-    }
-    RpcExcept(EXCEPTION_EXECUTE_HANDLER)
-    {
-        ret = RpcStatusToCmStatus(RpcExceptionCode());
-    }
-    RpcEndExcept;
 
     if (ret == CR_SUCCESS)
     {
@@ -6343,8 +6349,9 @@ CM_Open_Class_Key_ExW(
             return CR_INVALID_DATA;
         }
 
-        lstrcatW(szKeyName, Backslash);
+        lstrcatW(szKeyName, BackslashOpenBrace);
         lstrcatW(szKeyName, lpGuidString);
+        lstrcatW(szKeyName, CloseBrace);
     }
 
     if (Disposition == RegDisposition_OpenAlways)

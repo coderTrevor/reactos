@@ -23,6 +23,8 @@
 #include <commoncontrols.h>
 
 HRESULT TrayWindowCtxMenuCreator(ITrayWindow * TrayWnd, IN HWND hWndOwner, IContextMenu ** ppCtxMenu);
+LRESULT appbar_message(COPYDATASTRUCT* cds);
+void appbar_notify_all(HMONITOR hMon, UINT uMsg, HWND hwndExclude, LPARAM lParam);
 
 #define WM_APP_TRAYDESTROY  (WM_APP + 0x100)
 
@@ -198,7 +200,11 @@ public:
 
     VOID Initialize()
     {
-        SubclassWindow(m_hWnd);
+        // HACK & FIXME: CORE-18016
+        HWND hWnd = m_hWnd;
+        m_hWnd = NULL;
+        SubclassWindow(hWnd);
+
         SetWindowTheme(m_hWnd, L"Start", NULL);
 
         m_ImageList = ImageList_LoadImageW(hExplorerInstance,
@@ -225,6 +231,7 @@ public:
 
         DWORD dwStyle = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | BS_PUSHBUTTON | BS_LEFT | BS_VCENTER;
 
+        // HACK & FIXME: CORE-18016
         m_hWnd = CreateWindowEx(
             0,
             WC_BUTTON,
@@ -607,15 +614,21 @@ public:
             break;
 
         case ID_SHELL_CMD_TILE_WND_H:
+            appbar_notify_all(NULL, ABN_WINDOWARRANGE, NULL, TRUE);
             TileWindows(NULL, MDITILE_HORIZONTAL, NULL, 0, NULL);
+            appbar_notify_all(NULL, ABN_WINDOWARRANGE, NULL, FALSE);
             break;
 
         case ID_SHELL_CMD_TILE_WND_V:
+            appbar_notify_all(NULL, ABN_WINDOWARRANGE, NULL, TRUE);
             TileWindows(NULL, MDITILE_VERTICAL, NULL, 0, NULL);
+            appbar_notify_all(NULL, ABN_WINDOWARRANGE, NULL, FALSE);
             break;
 
         case ID_SHELL_CMD_CASCADE_WND:
+            appbar_notify_all(NULL, ABN_WINDOWARRANGE, NULL, TRUE);
             CascadeWindows(NULL, MDITILE_SKIPDISABLED, NULL, 0, NULL);
+            appbar_notify_all(NULL, ABN_WINDOWARRANGE, NULL, FALSE);
             break;
 
         case ID_SHELL_CMD_CUST_NOTIF:
@@ -1361,7 +1374,7 @@ GetPrimaryScreenRect:
 
                 m_TrayRects[m_Position] = rcTray;
             }
-            else
+            else if (m_Position != (DWORD)-1)
             {
                 /* If the user isn't resizing the tray window we need to make sure the
                    new size or position is valid. this is to prevent changes to the window
@@ -1550,7 +1563,7 @@ ChangePos:
         else
         {
             WndSize.cx = StartBtnSize.cx;
-            WndSize.cy = StartBtnSize.cy - EdgeSize.cx;
+            WndSize.cy = StartBtnSize.cy - EdgeSize.cy;
         }
 
         if (WndSize.cx < g_TaskbarSettings.sr.Size.cx)
@@ -1616,14 +1629,13 @@ ChangePos:
         if (StartSize.cx > rcClient.right)
             StartSize.cx = rcClient.right;
 
-        if (!m_Theme)
+        HWND hwndTaskToolbar = ::GetWindow(m_TaskSwitch, GW_CHILD);
+        if (hwndTaskToolbar)
         {
-            HWND hwndTaskToolbar = ::GetWindow(m_TaskSwitch, GW_CHILD);
-            if (hwndTaskToolbar)
-            {
-                DWORD size = SendMessageW(hwndTaskToolbar, TB_GETBUTTONSIZE, 0, 0);
-                StartSize.cy = HIWORD(size);
-            }
+            DWORD size = SendMessageW(hwndTaskToolbar, TB_GETBUTTONSIZE, 0, 0);
+
+            /* Themed button covers Edge area as well */
+            StartSize.cy = HIWORD(size) + (m_Theme ? GetSystemMetrics(SM_CYEDGE) : 0);
         }
 
         if (m_StartButton.m_hWnd != NULL)
@@ -1858,8 +1870,8 @@ ChangePos:
 
     void ProcessAutoHide()
     {
-        INT w = m_TraySize.cx - GetSystemMetrics(SM_CXBORDER) * 2 - 1;
-        INT h = m_TraySize.cy - GetSystemMetrics(SM_CYBORDER) * 2 - 1;
+        INT w = m_TraySize.cx - GetSystemMetrics(SM_CXSIZEFRAME);
+        INT h = m_TraySize.cy - GetSystemMetrics(SM_CYSIZEFRAME);
 
         switch (m_AutoHideState)
         {
@@ -1870,13 +1882,13 @@ ChangePos:
                 m_AutoHideOffset.cy = 0;
                 m_AutoHideOffset.cx -= AUTOHIDE_SPEED_HIDE;
                 if (m_AutoHideOffset.cx < -w)
-                    m_AutoHideOffset.cx = -w;
+                    m_AutoHideOffset.cx = w;
                 break;
             case ABE_TOP:
                 m_AutoHideOffset.cx = 0;
                 m_AutoHideOffset.cy -= AUTOHIDE_SPEED_HIDE;
                 if (m_AutoHideOffset.cy < -h)
-                    m_AutoHideOffset.cy = -h;
+                    m_AutoHideOffset.cy = h;
                 break;
             case ABE_RIGHT:
                 m_AutoHideOffset.cy = 0;
@@ -2197,7 +2209,6 @@ ChangePos:
         return m_ContextMenu->GetCommandString(idCmd, uType, pwReserved, pszName, cchMax);
     }
 
-
     /**********************************************************
      *    ##### message handling #####
      */
@@ -2341,9 +2352,16 @@ ChangePos:
 
     LRESULT OnCopyData(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
     {
-        if (m_TrayNotify)
-            ::SendMessageW(m_TrayNotify, uMsg, wParam, lParam);
-        return TRUE;
+        COPYDATASTRUCT *pCopyData = reinterpret_cast<COPYDATASTRUCT *>(lParam);
+        switch (pCopyData->dwData)
+        {
+            case TABDMC_APPBAR:
+                return appbar_message(pCopyData);
+            case TABDMC_NOTIFY:
+            case TABDMC_LOADINPROC:
+                return ::SendMessageW(m_TrayNotify, uMsg, wParam, lParam);
+        }
+        return FALSE;
     }
 
     LRESULT OnNcPaint(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
@@ -2888,7 +2906,7 @@ HandleTrayContextMenu:
             HWND hwnd = g_MinimizedAll[i];
             if (::IsWindowVisible(hwnd) && ::IsIconic(hwnd))
             {
-                ::ShowWindow(hwnd, SW_RESTORE);
+                ::ShowWindowAsync(hwnd, SW_RESTORE);
             }
         }
         g_MinimizedAll.RemoveAll();
@@ -3310,6 +3328,7 @@ public:
 
         if (TrayWnd->m_TrayBandSite != NULL)
         {
+            pcm.Release();
             if (FAILED(TrayWnd->m_TrayBandSite->AddContextMenus(
                 hPopup,
                 indexMenu,
@@ -3319,7 +3338,7 @@ public:
                 &pcm)))
             {
                 WARN("AddContextMenus failed.\n");
-                pcm = NULL;
+                pcm.Release();
             }
         }
 

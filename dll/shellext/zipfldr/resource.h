@@ -1,5 +1,10 @@
 #pragma once
 
+/* Bitmaps */
+#define IDB_ZIPFLDR                    164
+#define IDB_HEADER                     200
+#define IDB_WATERMARK                  201
+
 /* registry stuff */
 #define IDR_ZIPFLDR                     8000
 
@@ -42,6 +47,9 @@
 #define IDS_CANTCREATEZIP   112
 #define IDS_CANTREADFILE    113
 #define IDS_EXTRACTING      114
+#define IDS_CANTEXTRACTFILE 115
+#define IDS_DECOMPRESSERROR 116
+#define IDS_UNKNOWNERROR    117
 
 /* Wizard titles */
 #define IDS_WIZ_TITLE           8000

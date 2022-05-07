@@ -1,7 +1,7 @@
 /*
  * New device installer (newdev.dll)
  *
- * Copyright 2006 Hervé Poussineau (hpoussin@reactos.org)
+ * Copyright 2006 HervÃ© Poussineau (hpoussin@reactos.org)
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -23,6 +23,7 @@
 #include <wincon.h>
 #include <cfgmgr32.h>
 #include <shlobj.h>
+#include <shlwapi.h>
 
 HANDLE hThread;
 
@@ -40,6 +41,13 @@ CenterWindow(
 
     GetWindowRect(hWndParent, &rcParent);
     GetWindowRect(hWnd, &rcWindow);
+
+    /* Check if the child window fits inside the parent window */
+    if (rcWindow.left < rcParent.left || rcWindow.top < rcParent.top ||
+        rcWindow.right > rcParent.right || rcWindow.bottom > rcParent.bottom)
+    {
+        return;
+    }
 
     SetWindowPos(
         hWnd,
@@ -84,6 +92,29 @@ SetFailedInstall(
     {
 
         return FALSE;
+    }
+
+    if (Set)
+    {
+        /* Set the 'Unknown' device class */
+        PWSTR pszUnknown = L"Unknown";
+        SetupDiSetDeviceRegistryPropertyW(DeviceInfoSet,
+                                          DevInfoData,
+                                          SPDRP_CLASS,
+                                          (PBYTE)pszUnknown,
+                                          (wcslen(pszUnknown) + 1) * sizeof(WCHAR));
+
+        PWSTR pszUnknownGuid = L"{4D36E97E-E325-11CE-BFC1-08002BE10318}";
+        SetupDiSetDeviceRegistryPropertyW(DeviceInfoSet,
+                                          DevInfoData,
+                                          SPDRP_CLASSGUID,
+                                          (PBYTE)pszUnknownGuid,
+                                          (wcslen(pszUnknownGuid) + 1) * sizeof(WCHAR));
+
+        /* Set device problem code CM_PROB_FAILED_INSTALL */
+        CM_Set_DevNode_Problem(DevInfoData->DevInst,
+                               CM_PROB_FAILED_INSTALL,
+                               CM_SET_DEVNODE_PROBLEM_OVERRIDE);
     }
 
     return TRUE;
@@ -212,7 +243,6 @@ FindDriverProc(
     IN LPVOID lpParam)
 {
     PDEVINSTDATA DevInstData;
-    DWORD config_flags;
     BOOL result = FALSE;
 
     DevInstData = (PDEVINSTDATA)lpParam;
@@ -225,24 +255,13 @@ FindDriverProc(
     }
     else
     {
-        /* Update device configuration */
-        if (SetupDiGetDeviceRegistryProperty(
-            DevInstData->hDevInfo,
-            &DevInstData->devInfoData,
-            SPDRP_CONFIGFLAGS,
-            NULL,
-            (BYTE *)&config_flags,
-            sizeof(config_flags),
-            NULL))
+        if (!DevInstData->bUpdate)
         {
-            config_flags |= CONFIGFLAG_FAILEDINSTALL;
-            SetupDiSetDeviceRegistryPropertyW(
-                DevInstData->hDevInfo,
-                &DevInstData->devInfoData,
-                SPDRP_CONFIGFLAGS,
-                (BYTE *)&config_flags, sizeof(config_flags));
+            /* Update device configuration */
+            SetFailedInstall(DevInstData->hDevInfo,
+                             &DevInstData->devInfoData,
+                             TRUE);
         }
-
         PostMessage(DevInstData->hDialog, WM_SEARCH_FINISHED, 0, 0);
     }
     return 0;
@@ -501,9 +520,12 @@ WelcomeDlgProc(
                 (WPARAM)TRUE,
                 (LPARAM)0);
 
-            SetFailedInstall(DevInstData->hDevInfo,
-                             &DevInstData->devInfoData,
-                             TRUE);
+            if (!DevInstData->bUpdate)
+            {
+                SetFailedInstall(DevInstData->hDevInfo,
+                                 &DevInstData->devInfoData,
+                                 TRUE);
+            }
             break;
         }
 
@@ -573,8 +595,9 @@ CHSourceDlgProc(
     {
         case WM_INITDIALOG:
         {
-            HWND hwndControl;
+            HWND hwndControl, hwndCombo;
             DWORD dwStyle;
+            COMBOBOXINFO info = { sizeof(info) };
 
             /* Get pointer to the global setup data */
             DevInstData = (PDEVINSTDATA)((LPPROPSHEETPAGE)lParam)->lParam;
@@ -589,7 +612,11 @@ CHSourceDlgProc(
             dwStyle = GetWindowLongPtr(hwndControl, GWL_STYLE);
             SetWindowLongPtr(hwndControl, GWL_STYLE, dwStyle & ~WS_SYSMENU);
 
-            PopulateCustomPathCombo(GetDlgItem(hwndDlg, IDC_COMBO_PATH));
+            hwndCombo = GetDlgItem(hwndDlg, IDC_COMBO_PATH);
+            PopulateCustomPathCombo(hwndCombo);
+
+            GetComboBoxInfo(hwndCombo, &info);
+            SHAutoComplete(info.hwndItem, SHACF_FILESYS_DIRS);
 
             SendDlgItemMessage(
                 hwndDlg,
@@ -626,9 +653,12 @@ CHSourceDlgProc(
                 {
                     BROWSEINFO bi = { 0 };
                     LPITEMIDLIST pidl;
+                    WCHAR Title[MAX_PATH];
+                    LoadStringW(hDllInstance, IDS_BROWSE_FOR_FOLDER_TITLE, Title, _countof(Title));
 
                     bi.hwndOwner = hwndDlg;
-                    bi.ulFlags = BIF_RETURNONLYFSDIRS;
+                    bi.ulFlags = BIF_USENEWUI | BIF_RETURNONLYFSDIRS | BIF_STATUSTEXT | BIF_NONEWFOLDERBUTTON;
+                    bi.lpszTitle = Title;
                     pidl = SHBrowseForFolder(&bi);
                     if (pidl)
                     {
@@ -1303,6 +1333,7 @@ DisplayWizard(
     PROPSHEETHEADER psh = {0};
     HPROPSHEETPAGE ahpsp[IDD_MAXIMUMPAGE + 1];
     PROPSHEETPAGE psp = {0};
+    HRESULT hr = CoInitialize(NULL); /* for SHAutoComplete */
 
     /* zero based index */
     startPage -= IDD_FIRSTPAGE;
@@ -1382,5 +1413,7 @@ DisplayWizard(
 
     DeleteObject(DevInstData->hTitleFont);
 
+    if (SUCCEEDED(hr))
+        CoUninitialize();
     return TRUE;
 }

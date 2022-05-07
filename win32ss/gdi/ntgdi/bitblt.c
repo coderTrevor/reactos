@@ -7,6 +7,8 @@
  */
 
 #include <win32k.h>
+#define NDEBUG
+#include <debug.h>
 DBG_DEFAULT_CHANNEL(GdiBlt);
 
 BOOL APIENTRY
@@ -59,7 +61,7 @@ NtGdiAlphaBlend(
     DCDest = apObj[0];
     DCSrc = apObj[1];
 
-    if (DCDest->dctype == DC_TYPE_INFO || DCDest->dctype == DCTYPE_INFO)
+    if (DCDest->dctype == DCTYPE_INFO || DCDest->dctype == DCTYPE_INFO)
     {
         GDIOBJ_vUnlockObject(&DCSrc->BaseObject);
         GDIOBJ_vUnlockObject(&DCDest->BaseObject);
@@ -237,7 +239,7 @@ NtGdiTransparentBlt(
     DCDest = apObj[0];
     DCSrc = apObj[1];
 
-    if (DCDest->dctype == DC_TYPE_INFO || DCDest->dctype == DCTYPE_INFO)
+    if (DCDest->dctype == DCTYPE_INFO || DCDest->dctype == DCTYPE_INFO)
     {
         GDIOBJ_vUnlockObject(&DCSrc->BaseObject);
         GDIOBJ_vUnlockObject(&DCDest->BaseObject);
@@ -383,6 +385,7 @@ NtGdiMaskBlt(
     if (!GDIOBJ_bLockMultipleObjects(2, (HGDIOBJ*)ahDC, apObj, GDIObjType_DC_TYPE))
     {
         WARN("Invalid dc handle (dest=0x%p, src=0x%p) passed to NtGdiMaskBlt\n", hdcDest, hdcSrc);
+        if(psurfMask) SURFACE_ShareUnlockSurface(psurfMask);
         EngSetLastError(ERROR_INVALID_HANDLE);
         return FALSE;
     }
@@ -394,25 +397,28 @@ NtGdiMaskBlt(
     {
         if(DCSrc) DC_UnlockDc(DCSrc);
         WARN("Invalid destination dc handle (0x%p) passed to NtGdiMaskBlt\n", hdcDest);
+        if(psurfMask) SURFACE_ShareUnlockSurface(psurfMask);
         return FALSE;
     }
 
-    if (DCDest->dctype == DC_TYPE_INFO)
+    if (DCDest->dctype == DCTYPE_INFO)
     {
         if(DCSrc) DC_UnlockDc(DCSrc);
         DC_UnlockDc(DCDest);
         /* Yes, Windows really returns TRUE in this case */
+        if(psurfMask) SURFACE_ShareUnlockSurface(psurfMask);
         return TRUE;
     }
 
     if (UsesSource)
     {
         ASSERT(DCSrc);
-        if (DCSrc->dctype == DC_TYPE_INFO)
+        if (DCSrc->dctype == DCTYPE_INFO)
         {
             DC_UnlockDc(DCDest);
             DC_UnlockDc(DCSrc);
             /* Yes, Windows really returns TRUE in this case */
+            if(psurfMask) SURFACE_ShareUnlockSurface(psurfMask);
             return TRUE;
         }
     }
@@ -479,6 +485,29 @@ NtGdiMaskBlt(
         EXLATEOBJ_vInitXlateFromDCs(&exlo, DCSrc, DCDest);
         XlateObj = &exlo.xlo;
     }
+
+    DPRINT("DestRect: (%d,%d)-(%d,%d) and SourcePoint is (%d,%d)\n",
+        DestRect.left, DestRect.top, DestRect.right, DestRect.bottom,
+        SourcePoint.x, SourcePoint.y);
+
+    DPRINT("nWidth is '%d' and nHeight is '%d'.\n", nWidth, nHeight);
+
+    /* Fix BitBlt so that it will not flip left to right */
+    if ((DestRect.left > DestRect.right) && (nWidth < 0))
+    {
+        SourcePoint.x += nWidth;
+        nWidth = -nWidth;
+    }
+
+    /* Fix BitBlt so that it will not flip top to bottom */
+    if ((DestRect.top > DestRect.bottom) && (nHeight < 0))
+    {
+        SourcePoint.y += nHeight;
+        nHeight = -nHeight;
+    }
+
+    /* Make Well Ordered so that we don't flip either way */
+    RECTL_vMakeWellOrdered(&DestRect);
 
     /* Perform the bitblt operation */
     Status = IntEngBitBlt(&BitmapDest->SurfObj,
@@ -563,6 +592,7 @@ GreStretchBltMask(
     BOOL UsesSource;
     BOOL UsesMask;
     ROP4 rop4;
+    BOOL Case0000, Case0101, Case1010, CaseExcept;
 
     rop4 = WIN32_ROP4_TO_ENG_ROP4(dwRop4);
 
@@ -594,7 +624,7 @@ GreStretchBltMask(
     DCSrc = apObj[1];
     DCMask = apObj[2];
 
-    if (DCDest->dctype == DC_TYPE_INFO)
+    if (DCDest->dctype == DCTYPE_INFO)
     {
         if(DCSrc) GDIOBJ_vUnlockObject(&DCSrc->BaseObject);
         if(DCMask) GDIOBJ_vUnlockObject(&DCMask->BaseObject);
@@ -605,7 +635,7 @@ GreStretchBltMask(
 
     if (UsesSource)
     {
-        if (DCSrc->dctype == DC_TYPE_INFO)
+        if (DCSrc->dctype == DCTYPE_INFO)
         {
             GDIOBJ_vUnlockObject(&DCDest->BaseObject);
             GDIOBJ_vUnlockObject(&DCSrc->BaseObject);
@@ -615,12 +645,31 @@ GreStretchBltMask(
         }
     }
 
+
+    Case0000 = ((WidthDest < 0) && (HeightDest < 0) && (WidthSrc < 0) && (HeightSrc < 0));
+    Case0101 = ((WidthDest < 0) && (HeightDest > 0) && (WidthSrc < 0) && (HeightSrc > 0));
+    Case1010 = ((WidthDest > 0) && (HeightDest < 0) && (WidthSrc > 0) && (HeightSrc < 0));
+    CaseExcept = (Case0000 || Case0101 || Case1010);
+
     pdcattr = DCDest->pdcattr;
 
     DestRect.left   = XOriginDest;
     DestRect.top    = YOriginDest;
     DestRect.right  = XOriginDest+WidthDest;
     DestRect.bottom = YOriginDest+HeightDest;
+
+    /* Account for possible negative span values */
+    if ((WidthDest < 0) && !CaseExcept)
+    {
+        DestRect.left++;
+        DestRect.right++;
+    }
+    if ((HeightDest < 0) && !CaseExcept)
+    {
+        DestRect.top++;
+        DestRect.bottom++;
+    }
+
     IntLPtoDP(DCDest, (LPPOINT)&DestRect, 2);
 
     DestRect.left   += DCDest->ptlDCOrig.x;
@@ -637,6 +686,18 @@ GreStretchBltMask(
     SourceRect.top    = YOriginSrc;
     SourceRect.right  = XOriginSrc+WidthSrc;
     SourceRect.bottom = YOriginSrc+HeightSrc;
+
+    /* Account for possible negative span values */
+    if ((WidthSrc < 0) && !CaseExcept)
+    {
+        SourceRect.left++;
+        SourceRect.right++;
+    }
+    if ((HeightSrc < 0) && !CaseExcept)
+    {
+        SourceRect.top++;
+        SourceRect.bottom++;
+    }
 
     if (UsesSource)
     {
@@ -697,6 +758,10 @@ GreStretchBltMask(
         MaskPoint.x += DCMask->ptlDCOrig.x;
         MaskPoint.y += DCMask->ptlDCOrig.y;
     }
+
+    DPRINT("Calling IntEngStrethBlt SourceRect: (%d,%d)-(%d,%d) and DestRect: (%d,%d)-(%d,%d).\n",
+           SourceRect.left, SourceRect.top, SourceRect.right, SourceRect.bottom,
+           DestRect.left, DestRect.top, DestRect.right, DestRect.bottom);
 
     /* Perform the bitblt operation */
     Status = IntEngStretchBlt(&BitmapDest->SurfObj,
@@ -876,7 +941,7 @@ IntGdiPolyPatBlt(
         return FALSE;
     }
 
-    if (pdc->dctype == DC_TYPE_INFO)
+    if (pdc->dctype == DCTYPE_INFO)
     {
         DC_UnlockDc(pdc);
         /* Yes, Windows really returns TRUE in this case */
@@ -1080,7 +1145,7 @@ IntGdiBitBltRgn(
 
     if (pdc->fs & (DC_ACCUM_APP|DC_ACCUM_WMGR))
     {
-        RECTL rcrgn;        
+        RECTL rcrgn;
         REGION_GetRgnBox(prgnClip, &rcrgn);
         IntUpdateBoundsRect(pdc, &rcrgn);
     }
@@ -1165,7 +1230,7 @@ IntGdiFillRgn(
 
     if (pdc->fs & (DC_ACCUM_APP|DC_ACCUM_WMGR))
     {
-        RECTL rcrgn;        
+        RECTL rcrgn;
         REGION_GetRgnBox(prgnClip, &rcrgn);
         IntUpdateBoundsRect(pdc, &rcrgn);
     }

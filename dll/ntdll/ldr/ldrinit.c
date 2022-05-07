@@ -1646,7 +1646,7 @@ LdrpInitializeProcessCompat(PVOID pProcessActctx, PVOID* pOldShimData)
     {
         for (n = 0; n < ContextCompatInfo->ElementCount; ++n)
         {
-            if (ContextCompatInfo->Elements[n].Type == ACTCX_COMPATIBILITY_ELEMENT_TYPE_OS &&
+            if (ContextCompatInfo->Elements[n].Type == ACTCTX_COMPATIBILITY_ELEMENT_TYPE_OS &&
                 RtlCompareMemory(&ContextCompatInfo->Elements[n].Id, KnownCompatGuids[cur].Guid, sizeof(GUID)) == sizeof(GUID))
             {
                 if (LdrpDisableProcessCompatGuidDetection())
@@ -2427,21 +2427,26 @@ LdrpInitializeProcess(IN PCONTEXT Context,
     /* Validate the Image for MP Usage */
     if (LdrpNumberOfProcessors > 1) LdrpValidateImageForMp(LdrpImageEntry);
 
-    /* Check NX Options */
-    if (SharedUserData->NXSupportPolicy == 1)
+    /* Check NX options and set them */
+    if (SharedUserData->NXSupportPolicy == NX_SUPPORT_POLICY_ALWAYSON)
     {
-        ExecuteOptions = 0xD;
+        ExecuteOptions = MEM_EXECUTE_OPTION_DISABLE |
+                         MEM_EXECUTE_OPTION_DISABLE_THUNK_EMULATION |
+                         MEM_EXECUTE_OPTION_PERMANENT;
     }
-    else if (!SharedUserData->NXSupportPolicy)
+    else if (SharedUserData->NXSupportPolicy == NX_SUPPORT_POLICY_ALWAYSOFF)
     {
-        ExecuteOptions = 0xA;
+        ExecuteOptions = MEM_EXECUTE_OPTION_ENABLE | MEM_EXECUTE_OPTION_PERMANENT;
     }
-
-    /* Let Mm know */
-    ZwSetInformationProcess(NtCurrentProcess(),
-                            ProcessExecuteFlags,
-                            &ExecuteOptions,
-                            sizeof(ULONG));
+    Status = NtSetInformationProcess(NtCurrentProcess(),
+                                     ProcessExecuteFlags,
+                                     &ExecuteOptions,
+                                     sizeof(ExecuteOptions));
+    if (!NT_SUCCESS(Status))
+    {
+        DPRINT1("LDR: Could not set process execute flags 0x%x; status %x\n",
+                ExecuteOptions, Status);
+    }
 
     // FIXME: Should be done by Application Compatibility features,
     // by reading the registry, etc...

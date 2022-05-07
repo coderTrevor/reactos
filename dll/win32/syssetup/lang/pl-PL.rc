@@ -23,16 +23,16 @@ BEGIN
 END
 
 IDD_PRODUCT DIALOGEX 0, 0, 317, 143
-CAPTION "ReactOS Setup"
+CAPTION "Instalator systemu ReactOS"
 STYLE DS_MODALFRAME | DS_SHELLFONT | WS_POPUPWINDOW | WS_CAPTION | WS_VISIBLE
 FONT 8, "MS Shell Dlg"
 BEGIN
     ICON "", IDC_PRODUCT_ICON, 5, 5, 20, 20
-    LTEXT "Please choose a product option:", IDC_STATIC, 35, 7, 230, 12
-    LTEXT "Product &Options:", IDC_STATIC, 5, 32, 85, 10
+    LTEXT "Wybierz opcję produktu:", IDC_STATIC, 35, 7, 230, 12
+    LTEXT "&Opcje produktu:", IDC_STATIC, 5, 32, 85, 10
     COMBOBOX IDC_PRODUCT_OPTIONS, 95, 30, 170, 300, CBS_HASSTRINGS | CBS_AUTOHSCROLL | CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    GROUPBOX "Product Information", IDC_STATIC, 5, 50, 305, 85
-    LTEXT "Description:", IDC_STATIC, 20, 65, 70, 10
+    GROUPBOX "Informacje o produkcie", IDC_STATIC, 5, 50, 305, 85
+    LTEXT "Opis:", IDC_STATIC, 20, 65, 70, 10
     EDITTEXT IDC_PRODUCT_DESCRIPTION, 95, 65, 205, 60, ES_READONLY | ES_AUTOVSCROLL | ES_MULTILINE | WS_VSCROLL
 END
 
@@ -73,12 +73,13 @@ CAPTION "Instalator systemu ReactOS"
 FONT 8, "MS Shell Dlg"
 BEGIN
     ICON IDI_ICON4, IDC_STATIC, 21, 7, 20, 20
-    LTEXT "Lokalizacja systemu powinna być zgodna (językowo) z aplikacjami, których planujesz używać. Lokalizacja odpowiada również za wyświetlanie danych, liczb i walut.", IDC_STATIC, 53, 7, 238, 28
-    LTEXT "", IDC_LOCALETEXT, 53, 32, 250, 16
+    LTEXT "Lokalizacja systemu powinna być zgodna (językowo) z aplikacjami, których planujesz używać. Lokalizacja odpowiada również za wyświetlanie danych, liczb i walut.", IDC_STATIC, 53, 7, 238, 25
+    LTEXT "%s", IDC_LOCALETEXT, 53, 36, 250, 16
     LTEXT "By zmienić lokalizację systemu, kliknij przycisk Dostosuj.", IDC_STATIC, 53, 60, 184, 8
     PUSHBUTTON "&Dostosuj..", IDC_CUSTOMLOCALE, 245, 57, 50, 14
+    LTEXT "", IDC_STATIC, 53, 79, 241, 1, SS_ETCHEDHORZ
     LTEXT "Układ klawiatury decyduje o przyporządkowaniu znaków pod klawisze.", IDC_STATIC, 53, 86, 253, 8
-    LTEXT "", IDC_LAYOUTTEXT, 53, 100, 250, 16
+    LTEXT "%s", IDC_LAYOUTTEXT, 53, 100, 250, 16
     LTEXT "Aby zmienić układ klawiatury, kliknij przycisk Dostosuj.", IDC_STATIC, 53, 126, 184, 8
     PUSHBUTTON "Do&stosuj...", IDC_CUSTOMLAYOUT, 245, 122, 50, 14
 END
@@ -110,9 +111,12 @@ STYLE DS_SHELLFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYS
 CAPTION "Instalator systemu ReactOS"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    LTEXT "", IDC_ACTIVITY, 53, 7, 253, 20
-    LTEXT "", IDC_ITEM, 53, 29, 253, 20
-    CONTROL "", IDC_PROCESSPROGRESS, "msctls_progress32", PBS_SMOOTH | WS_CHILD | WS_VISIBLE | WS_BORDER, 53, 70, 253, 8
+    LTEXT "Rejestracja składników", IDC_TASKTEXT1, 65, 27, 232, 8
+    LTEXT "Installing start menu items", IDC_TASKTEXT2, 65, 39, 232, 8
+    LTEXT "Saving settings", IDC_TASKTEXT3, 65, 51, 232, 8
+    LTEXT "Removing temporary files", IDC_TASKTEXT4, 65, 63, 232, 8
+    LTEXT "", IDC_ITEM, 21, 85, 275, 8
+    CONTROL "", IDC_PROCESSPROGRESS, "msctls_progress32", PBS_SMOOTH | WS_CHILD | WS_VISIBLE | WS_BORDER, 21, 97, 275, 11
 END
 
 IDD_FINISHPAGE DIALOGEX 0, 0, 317, 193
@@ -135,13 +139,14 @@ BEGIN
     DEFPUSHBUTTON "OK", IDOK, 141, 209, 50, 14
 END
 
-IDD_STATUSWINDOW_DLG DIALOGEX 0, 0, 274, 37
+IDD_STATUSWINDOW_DLG DIALOGEX 0, 0, 275, 78
 STYLE NOT WS_VISIBLE | DS_CENTER | DS_MODALFRAME | DS_SHELLFONT | WS_BORDER | WS_CAPTION | WS_DLGFRAME | WS_POPUP
 CAPTION "Proszę czekać..."
 FONT 8, "MS Shell Dlg", 400, 0, 1
 BEGIN
-    LTEXT "", IDC_STATUSLABEL, 7, 8, 234, 12, SS_WORDELLIPSIS
-    CONTROL "Progress1", IDC_STATUSPROGRESS, "msctls_progress32", WS_BORDER | PBS_MARQUEE, 7, 21, 261, 10
+    CONTROL IDB_REACTOS, IDC_ROSLOGO, "Static", SS_BITMAP, 0, 0, 275, 54
+    CONTROL "", IDC_BAR, "Static", SS_OWNERDRAW, 0, 44, 275, 4
+    LTEXT "", IDC_STATUSLABEL, 7, 59, 235, 12, SS_WORDELLIPSIS
 END
 
 IDD_PS2MOUSEPROPERTIES DIALOGEX 0, 0, 252, 218
@@ -173,10 +178,12 @@ BEGIN
     IDS_COMPUTERSUBTITLE "Należy podać nazwę dla tego komputera oraz hasło administratora."
     IDS_LOCALETITLE "Opcje regionalne i językowe"
     IDS_LOCALESUBTITLE "System ReactOS można dostosować pod kątem języka i sposobu wyświetlania danych."
+    IDS_LOCALETEXT "The Standards and formats are set to %s, and the location is set to %s."
+    IDS_LAYOUTTEXT "Your default text input language and method is: %s keyboard layout"
     IDS_DATETIMETITLE "Data i godzina"
     IDS_DATETIMESUBTITLE "Ustaw prawidłową datę i godzinę."
-    IDS_PROCESSTITLE "Rejestracja składników"
-    IDS_PROCESSSUBTITLE "Proszę czekać..."
+    IDS_PROCESSTITLE "Finishing the Installation"
+    IDS_PROCESSSUBTITLE "Please wait while Setup completes the final steps."
     IDS_THEMESELECTIONTITLE "Wygląd"
     IDS_THEMESELECTIONSUBTITLE "Wybierz motyw, który preferujesz."
 END
@@ -185,7 +192,6 @@ STRINGTABLE
 BEGIN
     IDS_REACTOS_SETUP "Instalator systemu ReactOS"
     IDS_UNKNOWN_ERROR "Nieznany błąd"
-    IDS_REGISTERING_COMPONENTS "Rejestracja składników..."
     IDS_LOADLIBRARY_FAILED "Funkcja LoadLibrary napotkała problem: "
     IDS_GETPROCADDR_FAILED "Funkcja GetProcAddr napotkała problem: "
     IDS_REGSVR_FAILED "Funkcja DllRegisterServer napotkała problem: "
@@ -242,11 +248,11 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_PRODUCTTITLE "Product Options"
-    IDS_PRODUCTSUBTITLE "You can choose a product option that affects the behaviour of the system."
+    IDS_PRODUCTTITLE "Opcje produktu"
+    IDS_PRODUCTSUBTITLE "Możesz wybrać opcję produktu, która wpłynie na sposób działania systemu."
     IDS_PRODUCTSERVERNAME "ReactOS Server"
     IDS_PRODUCTWORKSTATIONNAME "ReactOS Workstation"
-    IDS_PRODUCTSERVERINFO "The system will be recognized as a server. Private folders ""My Pictures"", ""My Videos"" and ""My Music"" are independent from ""My Documents""."
-    IDS_PRODUCTWORKSTATIONINFO "The system will be recognized as a workstation. Private folders ""My Pictures"", ""My Videos"" and ""My Music"" are in ""My Documents""."
-    IDS_DEFAULT "(Default)"
+    IDS_PRODUCTSERVERINFO "System będzie rozpoznawany jako serwer. Foldery prywatne ""Moje obrazy"", ""Moje wideo"" i ""Moja muzyka"" są niezależne od folderu ""Moje dokumenty""."
+    IDS_PRODUCTWORKSTATIONINFO "System będzie rozpoznawany jako stacja robocza. Foldery prywatne ""Moje obrazy"", ""Moje wideo"" i ""Moja muzyka"" są w folderze ""Moje dokumenty""."
+    IDS_DEFAULT "(Domyślnie)"
 END

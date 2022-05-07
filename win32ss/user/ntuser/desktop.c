@@ -202,12 +202,16 @@ NTAPI
 IntDesktopObjectOpen(
     _In_ PVOID Parameters)
 {
+    NTSTATUS Ret;
     PWIN32_OPENMETHOD_PARAMETERS OpenParameters = Parameters;
     PPROCESSINFO ppi = PsGetProcessWin32Process(OpenParameters->Process);
     if (ppi == NULL)
         return STATUS_SUCCESS;
 
-    return IntMapDesktopView((PDESKTOP)OpenParameters->Object);
+    UserEnterExclusive();
+    Ret = IntMapDesktopView((PDESKTOP)OpenParameters->Object);
+    UserLeave();
+    return Ret;
 }
 
 NTSTATUS
@@ -215,6 +219,7 @@ NTAPI
 IntDesktopObjectClose(
     _In_ PVOID Parameters)
 {
+    NTSTATUS Ret;
     PWIN32_CLOSEMETHOD_PARAMETERS CloseParameters = Parameters;
     PPROCESSINFO ppi = PsGetProcessWin32Process(CloseParameters->Process);
     if (ppi == NULL)
@@ -224,13 +229,16 @@ IntDesktopObjectClose(
         return STATUS_SUCCESS;
     }
 
-    return IntUnmapDesktopView((PDESKTOP)CloseParameters->Object);
+    UserEnterExclusive();
+    Ret = IntUnmapDesktopView((PDESKTOP)CloseParameters->Object);
+    UserLeave();
+    return Ret;
 }
 
 
 /* PRIVATE FUNCTIONS **********************************************************/
 
-INIT_FUNCTION
+CODE_SEG("INIT")
 NTSTATUS
 NTAPI
 InitDesktopImpl(VOID)
@@ -547,6 +555,7 @@ IntResolveDesktop(
     LUID ProcessLuid;
     USHORT StrSize;
     SIZE_T MemSize;
+    PSECURITY_DESCRIPTOR ServiceSD = NULL;
     POBJECT_ATTRIBUTES ObjectAttributes = NULL;
     PUNICODE_STRING ObjectName;
     UNICODE_STRING WinStaName, DesktopName;
@@ -556,6 +565,8 @@ IntResolveDesktop(
     BOOLEAN bUseDefaultWinSta = FALSE;
     BOOLEAN bInteractive = FALSE;
     BOOLEAN bAccessAllowed = FALSE;
+
+    ASSERT(UserIsEnteredExclusive());
 
     ASSERT(phWinSta);
     ASSERT(phDesktop);
@@ -1003,15 +1014,28 @@ IntResolveDesktop(
             ObjectName->Length = (USHORT)(wcslen(ObjectName->Buffer) * sizeof(WCHAR));
 
             /*
+             * Set up a security descriptor for the service.
+             * A service is generally based upon a desktop
+             * and a window station. The newly created window
+             * station and desktop will get this security descriptor
+             * if such objects weren't created before.
+             */
+            Status = IntCreateServiceSecurity(&ServiceSD);
+            if (!NT_SUCCESS(Status))
+            {
+                ERR("Failed to create a security descriptor for default window station, Status 0x%08lx\n", Status);
+                goto Quit;
+            }
+
+            /*
              * Create or open the non-interactive window station.
              * NOTE: The non-interactive window station handle is never inheritable.
              */
-            // FIXME: Set security!
             InitializeObjectAttributes(ObjectAttributes,
                                        ObjectName,
                                        OBJ_CASE_INSENSITIVE | OBJ_OPENIF,
                                        NULL,
-                                       NULL);
+                                       ServiceSD);
 
             Status = IntCreateWindowStation(&hWinSta,
                                             ObjectAttributes,
@@ -1044,8 +1068,11 @@ IntResolveDesktop(
             }
             ObjectName->Length = (USHORT)(wcslen(ObjectName->Buffer) * sizeof(WCHAR));
 
-            /* NOTE: The non-interactive desktop handle is never inheritable. */
-            // FIXME: Set security!
+            /*
+             * NOTE: The non-interactive desktop handle is never inheritable.
+             * The security descriptor is inherited from the newly created
+             * window station for the desktop.
+             */
             InitializeObjectAttributes(ObjectAttributes,
                                        ObjectName,
                                        OBJ_CASE_INSENSITIVE | OBJ_OPENIF,
@@ -1165,6 +1192,8 @@ Quit:
     {
         *phWinSta  = hWinSta;
         *phDesktop = hDesktop;
+
+        IntFreeSecurityBuffer(ServiceSD);
         return STATUS_SUCCESS;
     }
     else
@@ -1180,6 +1209,9 @@ Quit:
             ObCloseHandle(hDesktop, UserMode);
         if (hWinSta)
             ObCloseHandle(hWinSta, UserMode);
+
+        if (ServiceSD)
+            IntFreeSecurityBuffer(ServiceSD);
 
         SetLastNtError(Status);
         return Status;
@@ -1205,13 +1237,12 @@ IntValidateDesktopHandle(
 {
     NTSTATUS Status;
 
-    Status = ObReferenceObjectByHandle(
-                Desktop,
-                DesiredAccess,
-                ExDesktopObjectType,
-                AccessMode,
-                (PVOID*)Object,
-                NULL);
+    Status = ObReferenceObjectByHandle(Desktop,
+                                       DesiredAccess,
+                                       ExDesktopObjectType,
+                                       AccessMode,
+                                       (PVOID*)Object,
+                                       NULL);
 
     TRACE("IntValidateDesktopHandle: handle:0x%p obj:0x%p access:0x%x Status:0x%lx\n",
           Desktop, *Object, DesiredAccess, Status);
@@ -1315,7 +1346,7 @@ IntSetFocusMessageQueue(PUSER_MESSAGE_QUEUE NewQueue)
     {
         gpqForeground = NULL;
         ERR("ptiLastInput is CLEARED!!\n");
-        ptiLastInput = NULL; // ReactOS hacks,,,, should check for process death.
+        ptiLastInput = NULL; // ReactOS hacks... should check for process death.
     }
 }
 
@@ -1346,6 +1377,7 @@ HWND FASTCALL IntGetDesktopWindow(VOID)
     return pdo->DesktopWindow;
 }
 
+// Win: _GetDesktopWindow
 PWND FASTCALL UserGetDesktopWindow(VOID)
 {
     PDESKTOP pdo = IntGetActiveDesktop();
@@ -1371,6 +1403,7 @@ HWND FASTCALL IntGetMessageWindow(VOID)
     return pdo->spwndMessage->head.h;
 }
 
+// Win: _GetMessageWindow
 PWND FASTCALL UserGetMessageWindow(VOID)
 {
     PDESKTOP pdo = IntGetActiveDesktop();
@@ -1541,7 +1574,7 @@ UserGetDesktopDC(ULONG DcType, BOOL bAltDc, BOOL ValidatehWnd)
     /* This can be called from GDI/DX, so acquire the USER lock */
     UserEnterExclusive();
 
-    if (DcType == DC_TYPE_DIRECT)
+    if (DcType == DCTYPE_DIRECT)
     {
         DesktopObject = UserGetDesktopWindow();
         DesktopHDC = (HDC)UserGetWindowDC(DesktopObject);
@@ -1566,12 +1599,10 @@ UserRedrawDesktop(VOID)
     Window = UserGetDesktopWindow();
     Rgn = IntSysCreateRectpRgnIndirect(&Window->rcWindow);
 
-    IntInvalidateWindows( Window,
-                             Rgn,
-                       RDW_FRAME |
-                       RDW_ERASE |
-                  RDW_INVALIDATE |
-                 RDW_ALLCHILDREN);
+    IntInvalidateWindows(Window,
+                         Rgn,
+                         RDW_FRAME | RDW_ERASE |
+                         RDW_INVALIDATE | RDW_ALLCHILDREN);
 
     REGION_Delete(Rgn);
 }
@@ -2328,6 +2359,8 @@ IntCreateDesktop(
 
     TRACE("Enter IntCreateDesktop\n");
 
+    ASSERT(UserIsEnteredExclusive());
+
     ASSERT(phDesktop);
     *phDesktop = NULL;
 
@@ -2444,7 +2477,7 @@ IntCreateDesktop(
     pdesk->spwndMessage = pWnd;
     pWnd->fnid = FNID_MESSAGEWND;
 
-    /* Now,,,
+    /* Now...
        if !(WinStaObject->Flags & WSF_NOIO) is (not set) for desktop input output mode (see wiki)
        Create Tooltip. Saved in DesktopObject->spwndTooltip.
        Tooltip dwExStyle: WS_EX_TOOLWINDOW|WS_EX_TOPMOST
@@ -2642,11 +2675,11 @@ NtUserOpenInputDesktop(
     HDESK hdesk;
 
     UserEnterExclusive();
-    TRACE("Enter NtUserOpenInputDesktop gpdeskInputDesktop 0x%p\n",gpdeskInputDesktop);
+    TRACE("Enter NtUserOpenInputDesktop gpdeskInputDesktop 0x%p\n", gpdeskInputDesktop);
 
     hdesk = UserOpenInputDesktop(dwFlags, fInherit, dwDesiredAccess);
 
-    TRACE("NtUserOpenInputDesktop returning 0x%p\n",hdesk);
+    TRACE("NtUserOpenInputDesktop returning 0x%p\n", hdesk);
     UserLeave();
     return hdesk;
 }
@@ -2710,7 +2743,7 @@ NtUserCloseDesktop(HDESK hDesktop)
     RETURN(TRUE);
 
 CLEANUP:
-    TRACE("Leave NtUserCloseDesktop, ret=%i\n",_ret_);
+    TRACE("Leave NtUserCloseDesktop, ret=%i\n", _ret_);
     UserLeave();
     END_CLEANUP;
 }
@@ -2734,10 +2767,13 @@ BOOL APIENTRY
 NtUserPaintDesktop(HDC hDC)
 {
     BOOL Ret;
+
     UserEnterExclusive();
     TRACE("Enter NtUserPaintDesktop\n");
+
     Ret = IntPaintDesktop(hDC);
-    TRACE("Leave NtUserPaintDesktop, ret=%i\n",Ret);
+
+    TRACE("Leave NtUserPaintDesktop, ret=%i\n", Ret);
     UserLeave();
     return Ret;
 }
@@ -2804,7 +2840,7 @@ NtUserResolveDesktop(
     if (!NT_SUCCESS(Status))
         return NULL;
 
-    // UserEnterShared();
+    UserEnterExclusive();
 
     _SEH2_TRY
     {
@@ -2859,7 +2895,7 @@ NtUserResolveDesktop(
     ReleaseCapturedUnicodeString(&CapturedDesktopPath, UserMode);
 
 Quit:
-    // UserLeave();
+    UserLeave();
 
     /* Dereference the process object */
     ObDereferenceObject(Process);
@@ -2962,13 +2998,13 @@ NtUserSwitchDesktop(HDESK hdesk)
     /* Show the new desktop window */
     co_IntShowDesktop(pdesk, UserGetSystemMetrics(SM_CXSCREEN), UserGetSystemMetrics(SM_CYSCREEN), bRedrawDesktop);
 
-    TRACE("SwitchDesktop gpdeskInputDesktop 0x%p\n",gpdeskInputDesktop);
+    TRACE("SwitchDesktop gpdeskInputDesktop 0x%p\n", gpdeskInputDesktop);
     ObDereferenceObject(pdesk);
 
     RETURN(TRUE);
 
 CLEANUP:
-    TRACE("Leave NtUserSwitchDesktop, ret=%i\n",_ret_);
+    TRACE("Leave NtUserSwitchDesktop, ret=%i\n", _ret_);
     UserLeave();
     END_CLEANUP;
 }

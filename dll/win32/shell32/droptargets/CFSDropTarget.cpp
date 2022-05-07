@@ -40,7 +40,8 @@ static WCHAR* BuildPathsList(LPCWSTR wszBasePath, int cidl, LPCITEMIDLIST *pidls
         FileStructW* pDataW = _ILGetFileStructW(pidls[i]);
         if (!pDataW)
         {
-            ERR("Got garbage pidl\n");
+            ERR("Mistreating a pidl:\n");
+            pdump_always(pidls[i]);
             continue;
         }
 
@@ -55,6 +56,8 @@ static WCHAR* BuildPathsList(LPCWSTR wszBasePath, int cidl, LPCITEMIDLIST *pidls
  * CFSDropTarget::_CopyItems
  *
  * copies items to this folder
+ * FIXME: We should not ask the parent folder: 'What is your path', and then manually build paths assuming everything is a simple pidl!
+ * We should be asking the parent folder: Give me a full name for this pidl (for each child!)
  */
 HRESULT CFSDropTarget::_CopyItems(IShellFolder * pSFFrom, UINT cidl,
                                   LPCITEMIDLIST * apidl, BOOL bCopy)
@@ -75,7 +78,7 @@ HRESULT CFSDropTarget::_CopyItems(IShellFolder * pSFFrom, UINT cidl,
         return hr;
 
     pszSrcList = BuildPathsList(strretFrom.pOleStr, cidl, apidl);
-    ERR("Source file (just the first) = %s, target path = %s, bCopy: %d\n", debugstr_w(pszSrcList), debugstr_w(m_sPathTarget), bCopy);
+    TRACE("Source file (just the first) = %s, target path = %s, bCopy: %d\n", debugstr_w(pszSrcList), debugstr_w(m_sPathTarget), bCopy);
     CoTaskMemFree(strretFrom.pOleStr);
     if (!pszSrcList)
         return E_OUTOFMEMORY;
@@ -92,9 +95,11 @@ HRESULT CFSDropTarget::_CopyItems(IShellFolder * pSFFrom, UINT cidl,
     HeapFree(GetProcessHeap(), 0, pszSrcList);
 
     if (res)
+    {
+        ERR("SHFileOperationW failed with 0x%x\n", res);
         return E_FAIL;
-    else
-        return S_OK;
+    }
+    return S_OK;
 }
 
 CFSDropTarget::CFSDropTarget():
@@ -130,7 +135,7 @@ CFSDropTarget::~CFSDropTarget()
 }
 
 BOOL
-CFSDropTarget::_GetUniqueFileName(LPWSTR pwszBasePath, LPCWSTR pwszExt, LPWSTR pwszTarget, BOOL bShortcut)
+CFSDropTarget::_GetUniqueFileName(LPCWSTR pwszBasePath, LPCWSTR pwszExt, LPWSTR pwszTarget, BOOL bShortcut)
 {
     WCHAR wszLink[40];
 
@@ -161,7 +166,7 @@ CFSDropTarget::_GetUniqueFileName(LPWSTR pwszBasePath, LPCWSTR pwszExt, LPWSTR p
  */
 BOOL CFSDropTarget::_QueryDrop(DWORD dwKeyState, LPDWORD pdwEffect)
 {
-    /* TODO Windows does different drop effects if dragging across drives. 
+    /* TODO Windows does different drop effects if dragging across drives.
     i.e., it will copy instead of move if the directories are on different disks. */
 
     DWORD dwEffect = m_dwDefaultEffect;
@@ -170,7 +175,7 @@ BOOL CFSDropTarget::_QueryDrop(DWORD dwKeyState, LPDWORD pdwEffect)
 
     if (m_fAcceptFmt) { /* Does our interpretation of the keystate ... */
         *pdwEffect = KeyStateToDropEffect (dwKeyState);
-        
+
         if (*pdwEffect == DROPEFFECT_NONE)
             *pdwEffect = dwEffect;
 
@@ -387,7 +392,7 @@ HRESULT WINAPI CFSDropTarget::Drop(IDataObject *pDataObject,
                                    DWORD dwKeyState, POINTL pt, DWORD *pdwEffect)
 {
     TRACE("(%p) object dropped, effect %u\n", this, *pdwEffect);
-    
+
     if (!pdwEffect)
         return E_INVALIDARG;
 
@@ -489,7 +494,10 @@ HRESULT CFSDropTarget::_DoDrop(IDataObject *pDataObject,
     {
         hr = pDataObject->GetData(&fmt, &medium);
         TRACE("CFSTR_SHELLIDLIST.\n");
-
+        if (FAILED(hr))
+        {
+            ERR("CFSTR_SHELLIDLIST failed\n");
+        }
         /* lock the handle */
         LPIDA lpcida = (LPIDA)GlobalLock(medium.hGlobal);
         if (!lpcida)
@@ -527,7 +535,7 @@ HRESULT CFSDropTarget::_DoDrop(IDataObject *pDataObject,
             /* use desktop shell folder */
             psfFrom = psfDesktop;
         }
-        else 
+        else
         {
             hr = psfDesktop->BindToObject(pidl, NULL, IID_PPV_ARG(IShellFolder, &psfFrom));
             if (FAILED(hr))
@@ -542,107 +550,128 @@ HRESULT CFSDropTarget::_DoDrop(IDataObject *pDataObject,
 
         if (bLinking)
         {
-            WCHAR wszTargetPath[MAX_PATH];
             WCHAR wszPath[MAX_PATH];
             WCHAR wszTarget[MAX_PATH];
 
-            wcscpy(wszTargetPath, m_sPathTarget);
-
-            TRACE("target path = %s", debugstr_w(wszTargetPath));
+            TRACE("target path = %s\n", debugstr_w(m_sPathTarget));
 
             /* We need to create a link for each pidl in the copied items, so step through the pidls from the clipboard */
             for (UINT i = 0; i < lpcida->cidl; i++)
             {
-                //Find out which file we're copying
+                // Find out which file we're linking.
                 STRRET strFile;
                 hr = psfFrom->GetDisplayNameOf(apidl[i], SHGDN_FORPARSING, &strFile);
-                if (FAILED(hr)) 
-                {
-                    ERR("Error source obtaining path");
+                if (FAILED_UNEXPECTEDLY(hr))
                     break;
-                }
 
                 hr = StrRetToBufW(&strFile, apidl[i], wszPath, _countof(wszPath));
-                if (FAILED(hr)) 
-                {
-                    ERR("Error putting source path into buffer");
+                if (FAILED_UNEXPECTEDLY(hr))
                     break;
-                }
-                TRACE("source path = %s", debugstr_w(wszPath));
 
-                // Creating a buffer to hold the combined path
-                WCHAR buffer_1[MAX_PATH] = L"";
-                WCHAR *lpStr1;
-                lpStr1 = buffer_1;
+                TRACE("source path = %s\n", debugstr_w(wszPath));
 
+                WCHAR wszDisplayName[MAX_PATH];
                 LPWSTR pwszFileName = PathFindFileNameW(wszPath);
-                LPWSTR pwszExt = PathFindExtensionW(wszPath);
-                LPWSTR placementPath = PathCombineW(lpStr1, m_sPathTarget, pwszFileName);
-                CComPtr<IPersistFile> ppf;
-
-                //Check to see if it's already a link. 
-                if (!wcsicmp(pwszExt, L".lnk"))
+                if (PathIsRootW(wszPath)) // Drive?
                 {
-                    //It's a link so, we create a new one which copies the old.
-                    if(!_GetUniqueFileName(placementPath, pwszExt, wszTarget, TRUE)) 
+                    hr = psfFrom->GetDisplayNameOf(apidl[i], SHGDN_NORMAL, &strFile);
+                    if (FAILED_UNEXPECTEDLY(hr))
+                        break;
+
+                    hr = StrRetToBufW(&strFile, apidl[i], wszDisplayName, _countof(wszDisplayName));
+                    if (FAILED_UNEXPECTEDLY(hr))
+                        break;
+
+                    // Delete a ':' in wszDisplayName.
+                    LPWSTR pch0 = wcschr(wszDisplayName, L':');
+                    if (pch0)
                     {
-                        ERR("Error getting unique file name");
-                        hr = E_FAIL;
-                        break;
-                    }
-                    hr = IShellLink_ConstructFromPath(wszPath, IID_PPV_ARG(IPersistFile, &ppf));
-                    if (FAILED(hr)) {
-                        ERR("Error constructing link from file");
-                        break;
+                        do
+                        {
+                            *pch0 = *(pch0 + 1);
+                            ++pch0;
+                        } while (*pch0);
                     }
 
-                    hr = ppf->Save(wszTarget, FALSE);
-					if (FAILED(hr))
-						break;
-					SHChangeNotify(SHCNE_CREATE, SHCNF_PATHW, wszTarget, NULL);
+                    pwszFileName = wszDisplayName; // Use wszDisplayName
+                }
+                else if (wszPath[0] == L':' && wszPath[1] == L':') // ::{GUID}?
+                {
+                    CLSID clsid;
+                    hr = ::CLSIDFromString(&wszPath[2], &clsid);
+                    if (SUCCEEDED(hr))
+                    {
+                        LPITEMIDLIST pidl = ILCreateFromPathW(wszPath);
+                        if (pidl)
+                        {
+                            SHFILEINFOW fi = { NULL };
+                            SHGetFileInfoW((LPCWSTR)pidl, 0, &fi, sizeof(fi),
+                                           SHGFI_DISPLAYNAME | SHGFI_PIDL);
+                            if (fi.szDisplayName[0])
+                            {
+                                lstrcpynW(wszDisplayName, fi.szDisplayName, _countof(wszDisplayName));
+                                pwszFileName = wszDisplayName; // Use wszDisplayName
+                            }
+                            ILFree(pidl);
+                        }
+                    }
+                }
+
+                // Creating a buffer to hold the combined path.
+                WCHAR wszCombined[MAX_PATH];
+                PathCombineW(wszCombined, m_sPathTarget, pwszFileName);
+
+                // Check to see if the source is a link
+                BOOL fSourceIsLink = FALSE;
+                if (!wcsicmp(PathFindExtensionW(wszPath), L".lnk"))
+                {
+                    fSourceIsLink = TRUE;
+                    PathRemoveExtensionW(wszCombined);
+                }
+
+                // Create a pathname to save the new link.
+                _GetUniqueFileName(wszCombined, L".lnk", wszTarget, TRUE);
+
+                CComPtr<IPersistFile> ppf;
+                if (fSourceIsLink)
+                {
+                    hr = IShellLink_ConstructFromPath(wszPath, IID_PPV_ARG(IPersistFile, &ppf));
+                    if (FAILED_UNEXPECTEDLY(hr))
+                        break;
                 }
                 else
                 {
-                    //It's not a link, so build a new link using the creator class and fill it in.
-                    //Create a file name for the link
-                    if (!_GetUniqueFileName(placementPath, L".lnk", wszTarget, TRUE))
-                    {
-                        ERR("Error creating unique file name");
-                        hr = E_FAIL;
-                        break;
-                    }
-
                     CComPtr<IShellLinkW> pLink;
                     hr = CShellLink::_CreatorClass::CreateInstance(NULL, IID_PPV_ARG(IShellLinkW, &pLink));
-                    if (FAILED(hr)) {
-                        ERR("Error instantiating IShellLinkW");
+                    if (FAILED_UNEXPECTEDLY(hr))
                         break;
-                    }
 
                     WCHAR szDirPath[MAX_PATH], *pwszFile;
                     GetFullPathName(wszPath, MAX_PATH, szDirPath, &pwszFile);
-                    if (pwszFile) pwszFile[0] = 0;
+                    if (pwszFile)
+                        pwszFile[0] = 0;
 
                     hr = pLink->SetPath(wszPath);
-                    if(FAILED(hr))
+                    if (FAILED_UNEXPECTEDLY(hr))
                         break;
 
                     hr = pLink->SetWorkingDirectory(szDirPath);
-                    if(FAILED(hr))
+                    if (FAILED_UNEXPECTEDLY(hr))
                         break;
 
                     hr = pLink->QueryInterface(IID_PPV_ARG(IPersistFile, &ppf));
-                    if(FAILED(hr))
+                    if (FAILED_UNEXPECTEDLY(hr))
                         break;
-
-                    hr = ppf->Save(wszTarget, TRUE);
-					if (FAILED(hr))
-						break;
-					SHChangeNotify(SHCNE_CREATE, SHCNF_PATHW, wszTarget, NULL);
                 }
+
+                hr = ppf->Save(wszTarget, !fSourceIsLink);
+                if (FAILED_UNEXPECTEDLY(hr))
+                    break;
+
+                SHChangeNotify(SHCNE_CREATE, SHCNF_PATHW, wszTarget, NULL);
             }
         }
-        else 
+        else
         {
             hr = _CopyItems(psfFrom, lpcida->cidl, (LPCITEMIDLIST*)apidl, bCopy);
         }
@@ -663,7 +692,7 @@ HRESULT CFSDropTarget::_DoDrop(IDataObject *pDataObject,
             wcscpy(wszTargetPath, m_sPathTarget);
             //Double NULL terminate.
             wszTargetPath[wcslen(wszTargetPath) + 1] = '\0';
-            
+
             LPDROPFILES lpdf = (LPDROPFILES) GlobalLock(medium.hGlobal);
             if (!lpdf)
             {
@@ -680,17 +709,23 @@ HRESULT CFSDropTarget::_DoDrop(IDataObject *pDataObject,
             op.hwnd = m_hwndSite;
             op.wFunc = bCopy ? FO_COPY : FO_MOVE;
             op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMMKDIR;
-            hr = SHFileOperationW(&op);
+            int res = SHFileOperationW(&op);
+            if (res)
+            {
+                ERR("SHFileOperationW failed with 0x%x\n", res);
+                hr = E_FAIL;
+            }
+
             return hr;
         }
         ERR("Error calling GetData\n");
         hr = E_FAIL;
     }
-    else 
+    else
     {
         ERR("No viable drop format.\n");
         hr = E_FAIL;
-    }    
+    }
     return hr;
 }
 
